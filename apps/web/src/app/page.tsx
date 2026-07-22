@@ -67,6 +67,7 @@ import {
   updateCopmTransfer,
   updateSwapIntent,
 } from "@/lib/swap-logging";
+import { appendAttributionSuffix } from "@/lib/celo-attribution";
 import {
   formatPesoAmountFromBigInt,
   formatPesoAmountFromString,
@@ -1183,7 +1184,7 @@ export default function Home() {
         setSwapProgress("confirming");
         const hash = await sendTransactionAsync({
           to: transactionRequest.target,
-          data: transactionRequest.data,
+          data: appendAttributionSuffix(transactionRequest.data),
           value: BigInt(transactionRequest.value ?? "0"),
         });
         lastHash = hash;
@@ -1435,7 +1436,7 @@ export default function Home() {
       setSellStatus("confirming");
       const hash = await sendTransactionAsync({
         to: transactionRequest.target,
-        data: transactionRequest.data,
+        data: appendAttributionSuffix(transactionRequest.data),
         value: BigInt(transactionRequest.value ?? "0"),
       });
       setSellTxHash(hash);

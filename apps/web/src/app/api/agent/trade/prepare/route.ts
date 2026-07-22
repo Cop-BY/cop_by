@@ -11,6 +11,7 @@ import {
 } from "viem";
 
 import { AGENT_SESSION_MAX_TRADE_USD } from "@/lib/agent-session";
+import { appendAttributionSuffix } from "@/lib/celo-attribution";
 import { ensureAgentSessionTable, ensureAgentTradeTable, getSql } from "@/lib/db";
 import { getTargetNetwork } from "@/lib/network-config";
 import { getSquidRoute } from "@/lib/squid-config";
@@ -203,6 +204,10 @@ export async function POST(request: Request) {
         deadline,
       ],
     });
+    const taggedTradeData = appendAttributionSuffix(
+      tradeData,
+      new URL(request.url).hostname
+    );
 
     await ensureAgentTradeTable();
     const [trade] = await getSql()`
@@ -239,7 +244,7 @@ export async function POST(request: Request) {
         ${routeResult.requestId ?? null},
         ${routeResult.route?.quoteId ?? null},
         ${body.userAddress},
-        ${tradeData},
+        ${taggedTradeData},
         '0'
       )
       RETURNING *
@@ -255,7 +260,7 @@ export async function POST(request: Request) {
       },
       trade,
       transaction: {
-        data: tradeData,
+        data: taggedTradeData,
         delegateTo: getAgentFxExecutorAddress(),
         from: body.agentAddress,
         to: body.userAddress,

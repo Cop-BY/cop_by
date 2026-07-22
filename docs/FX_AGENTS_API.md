@@ -29,12 +29,15 @@ Required server env vars:
 DATABASE_URL=
 NEXT_PUBLIC_TARGET_NETWORK=celo
 NEXT_PUBLIC_SQUID_INTEGRATOR_ID=
+CELO_ATTRIBUTION_CODE=
 AGENT_REGISTRY_ADDRESS=0xfa4721ad0Dfec2b4D3C2e3C219C11D1aC27C1809
 AGENT_FX_EXECUTOR_ADDRESS=0x3f467db5E9Aa917F9496112820E73A1389563749
 AGENT_RELAYER_PRIVATE_KEY=
 ```
 
 `AGENT_RELAYER_PRIVATE_KEY` is used by the backend to write the session into `CopByAgentRegistry`.
+
+`CELO_ATTRIBUTION_CODE` is optional. If empty, COP By derives the ERC-8021 attribution code from the request hostname.
 
 ## Contracts
 
@@ -233,7 +236,7 @@ Response:
 }
 ```
 
-The transaction target is the user wallet because the user wallet must be delegated to `CopByFXExecutor` through EIP-7702. The returned `data` is encoded `CopByFXExecutor.executeTrade(...)`.
+The transaction target is the user wallet because the user wallet must be delegated to `CopByFXExecutor` through EIP-7702. The returned `data` is encoded `CopByFXExecutor.executeTrade(...)` with the COP By ERC-8021 attribution suffix appended.
 
 Example:
 
@@ -265,6 +268,8 @@ await walletClient.sendTransaction({
   // The user EOA must already be delegated to transaction.delegateTo.
 });
 ```
+
+Do not rebuild or trim `transaction.data`. Send the calldata exactly as returned so the attribution suffix survives onchain.
 
 Expected onchain behavior:
 
