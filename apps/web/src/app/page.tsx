@@ -72,6 +72,10 @@ import {
   formatPesoAmountFromString,
 } from "@/lib/format-peso";
 import { createReceiptImageBlob, createReceiptPdfBlob, shareReceiptFile, shouldUseReceiptPdf } from "@/lib/receipt-share";
+import {
+  getWalletActionErrorCopy,
+  type WalletActionFlow,
+} from "@/lib/wallet-action-errors";
 import { useWalletAdapter } from "@/hooks/use-wallet-adapter";
 import {
   ShareableReceipt,
@@ -165,55 +169,12 @@ function createIntentId() {
   return crypto.randomUUID();
 }
 
-function getFriendlyErrorMessage(error: unknown, context: "swap" | "transfer" = "swap") {
-  const message = error instanceof Error ? error.message : String(error);
-  const lowerMessage = message.toLowerCase();
-  const fallback =
-    context === "transfer"
-      ? "No pudimos realizar la transferencia. Revisa la confirmacion en tu wallet e intenta de nuevo."
-      : "No pudimos completar la compra. Revisa la confirmacion en tu wallet e intenta de nuevo.";
-
-  if (
-    lowerMessage.includes("user rejected") ||
-    lowerMessage.includes("user denied") ||
-    lowerMessage.includes("rejected the request") ||
-    lowerMessage.includes("denied transaction")
-  ) {
-    return "Cancelaste la confirmacion en tu wallet.";
+function getFriendlyErrorMessage(error: unknown, context: WalletActionFlow = "buy") {
+  const copy = getWalletActionErrorCopy(error, context);
+  if (copy.isNoLiquidity && error instanceof SquidApiError) {
+    console.error("[COP By Squid debug]", formatSquidErrorForSupport(error));
   }
-
-  if (
-    lowerMessage.includes("too many quote requests") ||
-    lowerMessage.includes("rate limit") ||
-    lowerMessage.includes("429")
-  ) {
-    return "Estamos recibiendo muchas cotizaciones. Espera unos segundos e intenta de nuevo.";
-  }
-
-  if (lowerMessage.includes("low liquidity")) {
-    if (error instanceof SquidApiError) {
-      console.error("[COP By Squid debug]", formatSquidErrorForSupport(error));
-    }
-    return "No encontramos suficiente liquidez para comprar COPm con este token. Intenta con un monto menor o con otro token.";
-  }
-
-  if (lowerMessage.includes("minimum purchase amount")) {
-    return `La compra minima es de ${formatUsd(MIN_PURCHASE_USD)} USD aprox.`;
-  }
-
-  if (lowerMessage.includes("squid route unavailable")) {
-    return "No pudimos obtener una cotizacion de Squid. Intenta de nuevo.";
-  }
-
-  if (lowerMessage.includes("insufficient")) {
-    return "Saldo o permiso insuficiente para completar esta compra.";
-  }
-
-  if (message.length > 180 || lowerMessage.includes("request arguments")) {
-    return fallback;
-  }
-
-  return message || fallback;
+  return copy.message;
 }
 
 function formatAddressPreview(address: string) {
@@ -1323,7 +1284,8 @@ export default function Home() {
     } catch (error) {
       setSwapStatus("error");
       setSwapProgress("idle");
-      setSwapError(getFriendlyErrorMessage(error));
+      const copy = getWalletActionErrorCopy(error, "buy");
+      setSwapError(copy.message);
     }
   };
 
@@ -1533,7 +1495,8 @@ export default function Home() {
       await refreshCopmBalance();
     } catch (error) {
       setSellStatus("error");
-      const friendlyError = getFriendlyErrorMessage(error);
+      const copy = getWalletActionErrorCopy(error, "sell");
+      const friendlyError = copy.message;
       setSellError(friendlyError);
       if (intentId) {
         void updateSwapIntent(intentId, {
@@ -3221,6 +3184,9 @@ function BuyCopmScreen({
     !needsApprovedToken &&
     hasValidRecipient &&
     requestedUsd > 0;
+  const liquidityError = swapError
+    ? getWalletActionErrorCopy(new Error(swapError), "buy").isNoLiquidity
+    : false;
   const isBusy = swapStatus === "quoting" || swapStatus === "buying";
   const isApproving = Boolean(activating && approvalToken?.symbol === activating);
   const showButtonSpinner = isBusy || isApproving;
@@ -3401,14 +3367,20 @@ function BuyCopmScreen({
           </p>
         </div>
 
-        <Button
-          className="mt-4 h-12 w-full gap-2 rounded-[8px] bg-[#6D45B8] text-base font-semibold text-white hover:bg-[#56359A] disabled:bg-[#C8B9E8]"
-          disabled={isBusy || isApproving || (!canBuy && !canApprovePurchase)}
-          onClick={needsApprovedToken ? onApprovePurchase : onBuy}
-        >
-          {showButtonSpinner ? <ButtonSpinner /> : null}
-          {buttonLabel}
-        </Button>
+        {!liquidityError ? (
+          <Button
+            className="mt-4 h-12 w-full gap-2 rounded-[8px] bg-[#6D45B8] text-base font-semibold text-white hover:bg-[#56359A] disabled:bg-[#C8B9E8]"
+            disabled={isBusy || isApproving || (!canBuy && !canApprovePurchase)}
+            onClick={needsApprovedToken ? onApprovePurchase : onBuy}
+          >
+            {showButtonSpinner ? <ButtonSpinner /> : null}
+            {buttonLabel}
+          </Button>
+        ) : (
+          <div className="mt-4 rounded-[8px] border border-[#DDE4DC] bg-[#F7F8F5] px-3 py-3 text-sm font-medium text-[#66736B]">
+            Espera un momento y vuelve a intentar cuando haya más liquidez disponible.
+          </div>
+        )}
         {progressMessage && (
           <p className="mt-3 text-center text-sm font-medium text-[#66736B]">
             {progressMessage}
@@ -3699,6 +3671,9 @@ function SellCopmScreen({
           : "Vender COPm";
   const canSell =
     amountNumber > 0 && !hasInsufficientBalance && hasValidRecipient && !isBusy;
+  const liquidityError = error
+    ? getWalletActionErrorCopy(new Error(error), "sell").isNoLiquidity
+    : false;
   const copVsUsdChange =
     typeof copRateChange === "number" && Number.isFinite(copRateChange)
       ? -copRateChange
@@ -3838,14 +3813,20 @@ function SellCopmScreen({
           </div>
         )}
 
-        <Button
-          className="mt-4 h-12 w-full gap-2 rounded-[8px] bg-[#6D45B8] text-base font-semibold text-white hover:bg-[#56359A] disabled:bg-[#C8B9E8]"
-          disabled={!canSell}
-          onClick={onSell}
-        >
-          {isBusy ? <ButtonSpinner /> : null}
-          {buttonLabel}
-        </Button>
+        {!liquidityError ? (
+          <Button
+            className="mt-4 h-12 w-full gap-2 rounded-[8px] bg-[#6D45B8] text-base font-semibold text-white hover:bg-[#56359A] disabled:bg-[#C8B9E8]"
+            disabled={!canSell}
+            onClick={onSell}
+          >
+            {isBusy ? <ButtonSpinner /> : null}
+            {buttonLabel}
+          </Button>
+        ) : (
+          <div className="mt-4 rounded-[8px] border border-[#DDE4DC] bg-[#F7F8F5] px-3 py-3 text-sm font-medium text-[#66736B]">
+            Espera un momento y vuelve a intentar cuando haya más liquidez disponible.
+          </div>
+        )}
       </div>
     </div>
   );
