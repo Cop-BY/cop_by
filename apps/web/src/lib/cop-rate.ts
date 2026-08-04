@@ -1,4 +1,10 @@
-async function fetchCoinGeckoUsdCopRate() {
+type UsdCopReference = {
+  copPerUsd: number;
+  date?: string;
+  source: string;
+};
+
+async function fetchCoinGeckoUsdCopRate(): Promise<UsdCopReference | null> {
   const apiKey = process.env.COIN_GECKO_API_KEY;
   if (!apiKey) return null;
 
@@ -33,7 +39,7 @@ async function fetchCoinGeckoUsdCopRate() {
   };
 }
 
-async function fetchCurrencyApiUsdCopRate() {
+async function fetchCurrencyApiUsdCopRate(): Promise<UsdCopReference | null> {
   const response = await fetch(
     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
     { next: { revalidate: 60 * 60 } }
@@ -58,5 +64,30 @@ async function fetchCurrencyApiUsdCopRate() {
 }
 
 export async function fetchLatestUsdCopRate() {
-  return (await fetchCoinGeckoUsdCopRate()) ?? fetchCurrencyApiUsdCopRate();
+  const responses = await Promise.all([
+    fetchCoinGeckoUsdCopRate(),
+    fetchCurrencyApiUsdCopRate(),
+  ]);
+  const references: UsdCopReference[] = responses.filter(
+    (reference): reference is UsdCopReference => reference !== null
+  );
+
+  if (!references.length) return null;
+
+  const copPerUsd =
+    references.reduce((sum, reference) => sum + reference.copPerUsd, 0) /
+    references.length;
+
+  return {
+    copPerUsd,
+    date: references
+      .map((reference) => reference.date)
+      .filter(Boolean)
+      .join(" / "),
+    references,
+    source:
+      references.length === 1
+        ? references[0].source
+        : `average:${references.map((reference) => reference.source).join("+")}`,
+  };
 }

@@ -127,6 +127,11 @@ function logMarketDetails(market) {
   console.log(
     `Reference API: 1 USD = ${market.reference.copPerUsd.toFixed(4)} COP (${market.reference.source}, ${market.reference.date ?? "latest"}).`
   );
+  for (const reference of market.reference.references ?? []) {
+    console.log(
+      `  ${reference.source}: 1 USD = ${reference.copPerUsd.toFixed(4)} COP (${reference.date ?? "latest"})`
+    );
+  }
   if (market.quotes.buy) {
     console.log(
       [

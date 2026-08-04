@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
     reference: {
       copPerUsd: reference.copPerUsd,
       date: reference.date,
+      references: reference.references,
       source: reference.source,
     },
     quotes: {
