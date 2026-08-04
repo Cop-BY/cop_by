@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "skills": {
+    "bridging": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/bridging/SKILL.md",
+      "computedHash": "9d7d6374b3e41398604c456da1879300e1da8b9485563baed1d9d9e126874313"
+    },
+    "celo-composer": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/celo-composer/SKILL.md",
+      "computedHash": "bbc4088e682cda4b3a650dca08ae941d8cd57305b240004b94823e7e98beecfa"
+    },
+    "celo-defi": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/celo-defi/SKILL.md",
+      "computedHash": "52cd8d45345c1c1524494c891835f9409a0ce45b5b4595a039a04bd0ed13305f"
+    },
+    "celo-rpc": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/celo-rpc/SKILL.md",
+      "computedHash": "eb2649cec63982a82a486787d3d8ef50df58579e04b5bb89f909b0b67a8c178d"
+    },
+    "celo-stablecoins": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/celo-stablecoins/SKILL.md",
+      "computedHash": "beaf70ec6f1f603ec2aa6583779738eede60a4ca5218cd12a1213c0ce5f64864"
+    },
+    "contract-verification": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/contract-verification/SKILL.md",
+      "computedHash": "48e2cabe6343fc9894de4f7f397e4fba14d3b6418ae5195c79ee426f41ea6624"
+    },
+    "evm-foundry": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evm-foundry/SKILL.md",
+      "computedHash": "c34a14df75353a4b5b1680e884557c314301acf7f25fce26b3872b50818dd60d"
+    },
+    "evm-hardhat": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evm-hardhat/SKILL.md",
+      "computedHash": "7cf40288eb4135f185040bc04a0251188c8a19cad4b39e6f4f650a4d1b1e7aac"
+    },
+    "evm-wallet-integration": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/evm-wallet-integration/SKILL.md",
+      "computedHash": "d8109114958c355ef3a2b9176f61c340ebf3133456f89b7178396dc5ec00813a"
+    },
+    "fee-abstraction": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/fee-abstraction/SKILL.md",
+      "computedHash": "9aead9244c8e5ffc15f8687b88caa66db78a2b47ea5655a94494419b3128e86e"
+    },
+    "minipay-integration": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/minipay-integration/SKILL.md",
+      "computedHash": "a1423fc1359ac0ddf965a9899def88caf420fdcd0804ad06e538ac1913f5ab07"
+    },
+    "thirdweb": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/thirdweb/SKILL.md",
+      "computedHash": "c47d29e50b96dc1d19e280b92766c98546aa054f914856e89686e721ee032dc9"
+    },
+    "viem": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/viem/SKILL.md",
+      "computedHash": "f9e5001573f9d5315738504855d670df50a2e3be9b02f0ff895e730b71740ec7"
+    },
+    "wagmi": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/wagmi/SKILL.md",
+      "computedHash": "e182d13d7d9cd1b1364b8faaf9f823e82547abecee7c218c1add815e737dced4"
+    },
+    "x402": {
+      "source": "celo-org/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/x402/SKILL.md",
+      "computedHash": "a110636b878b88a0d16c93ce5b640002a091f2d91fd58873222ba56a341ee0a1"
+    }
+  }
+}

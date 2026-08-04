@@ -68,3 +68,83 @@ export async function ensureTransferTable() {
     )
   `;
 }
+
+export async function ensureAgentSessionTable() {
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS agent_sessions (
+      session_id TEXT PRIMARY KEY,
+      user_address TEXT NOT NULL,
+      agent_address TEXT NOT NULL,
+      chain_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      allowed_pair TEXT NOT NULL,
+      max_trade_usd TEXT NOT NULL,
+      max_copm_trade TEXT,
+      max_usdt_trade TEXT,
+      max_copm_volume TEXT,
+      max_usdt_volume TEXT,
+      expires_at TIMESTAMPTZ NOT NULL,
+      signature TEXT,
+      onchain_session_tx_hash TEXT,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS agent_sessions_user_status_idx
+    ON agent_sessions (user_address, status, expires_at)
+  `;
+  await getSql()`
+    ALTER TABLE agent_sessions
+    ADD COLUMN IF NOT EXISTS max_copm_trade TEXT
+  `;
+  await getSql()`
+    ALTER TABLE agent_sessions
+    ADD COLUMN IF NOT EXISTS max_usdt_trade TEXT
+  `;
+  await getSql()`
+    ALTER TABLE agent_sessions
+    ADD COLUMN IF NOT EXISTS max_copm_volume TEXT
+  `;
+  await getSql()`
+    ALTER TABLE agent_sessions
+    ADD COLUMN IF NOT EXISTS max_usdt_volume TEXT
+  `;
+}
+
+export async function ensureAgentTradeTable() {
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS agent_trades (
+      intent_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      agent_address TEXT NOT NULL,
+      chain_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      input_token TEXT NOT NULL,
+      output_token TEXT NOT NULL,
+      input_amount TEXT NOT NULL,
+      quoted_output_amount TEXT,
+      actual_output_amount TEXT,
+      squid_request_id TEXT,
+      squid_quote_id TEXT,
+      batch_to TEXT,
+      batch_data TEXT,
+      batch_value TEXT,
+      trade_tx_hash TEXT,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS agent_trades_session_created_idx
+    ON agent_trades (session_id, created_at DESC)
+  `;
+  await getSql()`
+    ALTER TABLE agent_trades
+    ADD COLUMN IF NOT EXISTS actual_output_amount TEXT
+  `;
+}

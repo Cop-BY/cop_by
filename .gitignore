@@ -111,3 +111,6 @@ typechain-types/
 
 # Local certificates and keys
 *.pem
+
+# Local agent skills/config
+.agents/

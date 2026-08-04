@@ -1,3 +1,7 @@
 {
-  "CopByPurchaseLogModule#CopByPurchaseLog": "0x78f9EA8fc69831ea30bEdDE9c8DEbBa6BC6fC642"
+  "CopByPurchaseLogModule#CopByPurchaseLog": "0x78f9EA8fc69831ea30bEdDE9c8DEbBa6BC6fC642",
+  "CopByAgentContractsModule#BatchExecutor": "0x4F2e55Fb2e2B5fd8FFa1e0342E78ee711916b84D",
+  "CopByAgentContractsModule#CopByAgentRegistry": "0x6F9399477A06951c920218887F8F0772f2CE3Fb4",
+  "CopByAgentFxContractsModule#CopByAgentRegistry": "0xfa4721ad0Dfec2b4D3C2e3C219C11D1aC27C1809",
+  "CopByAgentFxContractsModule#CopByFXExecutor": "0x3f467db5E9Aa917F9496112820E73A1389563749"
 }

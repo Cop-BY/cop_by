@@ -10,6 +10,8 @@
     "deploy": "hardhat ignition deploy ignition/modules/Lock.ts",
     "deploy:celo-sepolia": "hardhat ignition deploy ignition/modules/Lock.ts --network celo-sepolia",
     "deploy:celo": "hardhat ignition deploy ignition/modules/Lock.ts --network celo",
+    "deploy:agent-contracts:celo": "hardhat ignition deploy ignition/modules/CopByAgentContracts.ts --network celo",
+    "deploy:agent-fx-contracts:celo": "hardhat ignition deploy ignition/modules/CopByAgentFxContracts.ts --network celo",
     "verify": "hardhat verify",
     "clean": "hardhat clean",
     "typechain": "hardhat typechain"

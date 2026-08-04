@@ -7,9 +7,12 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
+    "agent:fx": "node scripts/agent-fx-strategy.mjs",
+    "agent:smoke": "node scripts/agent-smoke-test.mjs",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@celo/attribution-tags": "^0.3.0",
     "@neondatabase/serverless": "^0.10.4",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-slot": "^1.0.2",
