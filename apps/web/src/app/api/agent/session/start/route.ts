@@ -130,7 +130,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       domain,
-      message,
+      message: {
+        ...message,
+        chainId: message.chainId.toString(),
+        expiresAt: message.expiresAt.toString(),
+        maxTradeUsd: message.maxTradeUsd.toString(),
+      },
       primaryType: "AgentTradingSession",
       session,
       types: agentTradingSessionTypes,

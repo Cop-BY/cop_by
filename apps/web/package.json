@@ -7,6 +7,8 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
+    "agent:fx": "node scripts/agent-fx-strategy.mjs",
+    "agent:smoke": "node scripts/agent-smoke-test.mjs",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
