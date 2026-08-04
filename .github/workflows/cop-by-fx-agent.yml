@@ -1,0 +1,35 @@
+name: COP By FX Agent
+
+on:
+  schedule:
+    - cron: "0 4/4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-agent:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    env:
+      TEST_AGENT_PRIVATE_KEY: ${{ secrets.TEST_AGENT_PRIVATE_KEY }}
+      COP_BY_APP_URL: ${{ vars.COP_BY_APP_URL }}
+      FX_AGENT_EDGE_THRESHOLD_BPS: ${{ vars.FX_AGENT_EDGE_THRESHOLD_BPS }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter web agent:fx
