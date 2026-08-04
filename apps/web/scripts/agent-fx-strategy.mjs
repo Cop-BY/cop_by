@@ -179,7 +179,6 @@ if (market.signals.recommendation === "hold") {
   process.exit(0);
 }
 
-const sessionId = await getSessionId();
 const quote = market.quotes[market.signals.recommendation];
 const direction = market.signals.recommendation;
 const inputAmount = direction === "buy" ? quote.inputUsdt : quote.inputCopm;
@@ -191,11 +190,16 @@ const tokenAddress =
 const balance = await getBalance(tokenAddress);
 
 if (balance < BigInt(inputAmount)) {
-  throw new Error(
-    `Insufficient ${inputToken} for ${direction}. Balance ${balance.toString()}, required ${inputAmount}.`
+  console.log(
+    `Decision: hold ${inputToken}. ${direction.toUpperCase()} signal skipped because balance is insufficient.`
   );
+  console.log(
+    `Reason: ${inputToken} balance ${balance.toString()}, required ${inputAmount}.`
+  );
+  process.exit(0);
 }
 
+const sessionId = await getSessionId();
 console.log(`Decision: ${direction.toUpperCase()}. Executing ${inputAmount}.`);
 const result = await runTrade({ direction, inputAmount });
 const spent =
