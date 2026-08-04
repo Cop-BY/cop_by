@@ -123,6 +123,36 @@ function getHoldAsset(market) {
   return "current balances";
 }
 
+function logMarketDetails(market) {
+  console.log(
+    `Reference API: 1 USD = ${market.reference.copPerUsd.toFixed(4)} COP (${market.reference.source}, ${market.reference.date ?? "latest"}).`
+  );
+  if (market.quotes.buy) {
+    console.log(
+      [
+        `Squid buy quote: ${formatTokenAmount(BigInt(market.quotes.buy.inputUsdt), 6, 6)} USDT -> ${formatTokenAmount(BigInt(market.quotes.buy.outputCopm), 18, 4)} COPm`,
+        `  implied: 1 USDT = ${market.quotes.buy.copmPerUsdt.toFixed(4)} COPm`,
+        `  requestId: ${market.quotes.buy.requestId ?? "n/a"}`,
+        `  quoteId: ${market.quotes.buy.quoteId ?? "n/a"}`,
+      ].join("\n")
+    );
+  } else {
+    console.log("Squid buy quote: unavailable");
+  }
+  if (market.quotes.sell) {
+    console.log(
+      [
+        `Squid sell quote: ${formatTokenAmount(BigInt(market.quotes.sell.inputCopm), 18, 4)} COPm -> ${formatTokenAmount(BigInt(market.quotes.sell.outputUsdt), 6, 6)} USDT`,
+        `  implied: reference COPm basket = ${market.quotes.sell.usdtForReferenceCopm.toFixed(6)} USDT`,
+        `  requestId: ${market.quotes.sell.requestId ?? "n/a"}`,
+        `  quoteId: ${market.quotes.sell.quoteId ?? "n/a"}`,
+      ].join("\n")
+    );
+  } else {
+    console.log("Squid sell quote: unavailable");
+  }
+}
+
 async function runTrade({ direction, inputAmount }) {
   const prepared = await post("/api/agent/trade/prepare", {
     agentAddress: account.address,
@@ -163,6 +193,7 @@ console.log("Base URL:", baseUrl);
 const market = await get(
   `/api/agent/market?userAddress=${account.address}&thresholdBps=${thresholdBps}`
 );
+logMarketDetails(market);
 console.log(
   `Market: buy edge ${formatBps(market.signals.buyEdgeBps)}, sell edge ${formatBps(
     market.signals.sellEdgeBps
