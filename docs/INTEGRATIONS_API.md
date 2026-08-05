@@ -1,6 +1,7 @@
 # COP By Integrations API
 
-This API lets approved partners prepare a `USDT -> COPm` swap for their own UI.
+This API lets approved partners prepare a `USDT`, `USDC`, or `USDm` to `COPm`
+swap for their own UI.
 COP By does not custody funds and does not deposit into partner contracts. The user
 signs the returned transaction from their own wallet and receives COPm directly.
 
@@ -28,6 +29,17 @@ Content-Type: application/json
   "slippage": 0.3
 }
 ```
+
+Supported `fromToken` values:
+
+```txt
+USDT
+USDC
+USDm
+```
+
+`fromAmount` must use the token's onchain decimals. USDT and USDC use 6 decimals;
+USDm uses 18 decimals.
 
 Response:
 

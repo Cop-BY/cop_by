@@ -16,12 +16,13 @@ import {
 const TOKEN_COLORS: Record<SupportedTokenKey, string> = {
   copm: "#0E7C4F",
   usdc: "#2775CA",
+  usdm: "#35D07F",
   usdt: "#26A17B",
   wbtc: "#F7931A",
   weth: "#627EEA",
 };
 
-const STABLE_SYMBOLS = new Set(["USDC", "USDT", "COPm"]);
+const STABLE_SYMBOLS = new Set(["USDC", "USDm", "USDT", "COPm"]);
 
 export type TokenUsdPrices = Partial<
   Record<"COP_PER_USD" | "COP_PER_USD_24H_CHANGE" | "ETH" | "WBTC", number>

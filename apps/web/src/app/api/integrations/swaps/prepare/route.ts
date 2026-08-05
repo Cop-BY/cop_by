@@ -9,10 +9,13 @@ import { getSquidCopmRoute } from "@/lib/squid-config";
 
 type PrepareIntegrationSwapBody = {
   fromAmount?: string;
-  fromToken?: "USDT";
+  fromToken?: "USDC" | "USDm" | "USDT";
   slippage?: number;
   userAddress?: string;
 };
+
+const SUPPORTED_INPUT_TOKENS = ["USDT", "USDC", "USDm"] as const;
+type SupportedInputToken = (typeof SUPPORTED_INPUT_TOKENS)[number];
 
 function createIntentId() {
   return keccak256(toBytes(crypto.randomUUID()));
@@ -33,6 +36,15 @@ function parseSlippage(value: unknown) {
   return slippage;
 }
 
+function parseInputToken(value: unknown): SupportedInputToken | null {
+  if (!value) return "USDT";
+  if (SUPPORTED_INPUT_TOKENS.includes(value as SupportedInputToken)) {
+    return value as SupportedInputToken;
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const auth = await requireIntegrationApiKey(request);
@@ -42,8 +54,12 @@ export async function POST(request: Request) {
     if (!body.userAddress || !isAddress(body.userAddress)) {
       return NextResponse.json({ error: "Invalid user address" }, { status: 400 });
     }
-    if (body.fromToken && body.fromToken !== "USDT") {
-      return NextResponse.json({ error: "Only USDT to COPm is supported" }, { status: 400 });
+    const inputTokenSymbol = parseInputToken(body.fromToken);
+    if (!inputTokenSymbol) {
+      return NextResponse.json(
+        { error: "Only USDT, USDC, or USDm to COPm is supported" },
+        { status: 400 }
+      );
     }
 
     const targetNetwork = getTargetNetwork();
@@ -54,16 +70,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const usdt = targetNetwork.tokens.usdt.address;
+    const inputTokenConfig =
+      inputTokenSymbol === "USDC"
+        ? targetNetwork.tokens.usdc
+        : inputTokenSymbol === "USDm"
+          ? targetNetwork.tokens.usdm
+          : targetNetwork.tokens.usdt;
+    const inputToken = inputTokenConfig.address;
     const copm = targetNetwork.tokens.copm.address;
-    if (!usdt || !copm) throw new Error("Missing USDT/COPm token config");
+    if (!inputToken || !copm) {
+      throw new Error(`Missing ${inputTokenSymbol}/COPm token config`);
+    }
 
     const inputAmount = parseAtomicAmount(body.fromAmount);
     const routeResult = await getSquidCopmRoute({
       fromAddress: body.userAddress as Address,
       fromAmount: inputAmount.toString(),
       fromChain: targetNetwork.squidChainId,
-      fromToken: usdt,
+      fromToken: inputToken,
       slippage: parseSlippage(body.slippage),
       toAddress: body.userAddress as Address,
       toChain: targetNetwork.squidChainId,
@@ -115,7 +139,7 @@ export async function POST(request: Request) {
         ${body.userAddress.toLowerCase()},
         ${targetNetwork.chainId},
         'prepared',
-        ${usdt},
+        ${inputToken},
         ${copm},
         ${inputAmount.toString()},
         ${quotedOutputAmount.toString()},
@@ -144,6 +168,11 @@ export async function POST(request: Request) {
         approvalTarget: routeResult.approvalTarget,
         data: taggedData,
         from: body.userAddress,
+        inputToken: {
+          address: inputToken,
+          decimals: inputTokenConfig.decimals,
+          symbol: inputTokenConfig.symbol,
+        },
         to: tx.target,
         value: "0",
       },

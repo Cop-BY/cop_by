@@ -3,7 +3,13 @@ import { celo, celoSepolia } from "wagmi/chains";
 
 export type SupportedNetworkKey = "celo" | "celo-sepolia";
 
-export type SupportedTokenKey = "copm" | "usdc" | "usdt" | "wbtc" | "weth";
+export type SupportedTokenKey =
+  | "copm"
+  | "usdc"
+  | "usdm"
+  | "usdt"
+  | "wbtc"
+  | "weth";
 
 export type TokenConfig = {
   key: SupportedTokenKey;
@@ -64,6 +70,15 @@ export const NETWORK_CONFIG = {
         requiresApproval: true,
         enabled: true,
       },
+      usdm: {
+        key: "usdm",
+        symbol: "USDm",
+        name: "Mento Dollar",
+        address: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+        decimals: 18,
+        requiresApproval: true,
+        enabled: true,
+      },
       usdt: {
         key: "usdt",
         symbol: "USDT",
@@ -119,6 +134,15 @@ export const NETWORK_CONFIG = {
         name: "USDC",
         address: "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
         decimals: 6,
+        requiresApproval: true,
+        enabled: true,
+      },
+      usdm: {
+        key: "usdm",
+        symbol: "USDm",
+        name: "Mento Dollar",
+        address: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b",
+        decimals: 18,
         requiresApproval: true,
         enabled: true,
       },
