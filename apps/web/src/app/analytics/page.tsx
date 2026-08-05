@@ -83,6 +83,11 @@ function atomicUsdt(value: string | null) {
   return Number(value) / 1_000_000;
 }
 
+function atomicCopm(value: string | null) {
+  if (!value || !/^[0-9]+$/.test(value)) return 0;
+  return Number(value) / 1_000_000_000_000_000_000;
+}
+
 function percent(value: number) {
   return `${number(value, 1)}%`;
 }
@@ -174,7 +179,7 @@ export default async function AnalyticsPage() {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const total = rows.length;
+  const total = rows.length + integrationRows.length;
   const completed = rows.filter(isCompleted);
   const completedBuys = completed.filter((row) => (row.swap_type ?? "buy") === "buy");
   const completedSells = completed.filter((row) => row.swap_type === "sell");
@@ -185,34 +190,60 @@ export default async function AnalyticsPage() {
     (row) => row.status === "confirmed"
   );
   const logged = rows.filter((row) => row.status === "logged");
-  const failed = rows.filter((row) => row.status === "failed" || row.error);
+  const failed = [
+    ...rows.filter((row) => row.status === "failed" || row.error),
+    ...integrationRows.filter((row) => row.status === "failed" || row.error),
+  ];
   const todayRows = completed.filter((row) => new Date(row.created_at) >= today);
-  const wau = new Set(
-    completed
+  const todayIntegrations = completedIntegrations.filter(
+    (row) => new Date(row.created_at) >= today
+  );
+  const weeklyUsers = [
+    ...completed
       .filter((row) => new Date(row.created_at) >= sevenDaysAgo)
-      .map((row) => row.user_address)
+      .map((row) => row.user_address),
+    ...completedIntegrations
+      .filter((row) => new Date(row.created_at) >= sevenDaysAgo)
+      .map((row) => row.user_address),
+  ];
+  const monthlyUsers = [
+    ...completed
+      .filter((row) => new Date(row.created_at) >= thirtyDaysAgo)
+      .map((row) => row.user_address),
+    ...completedIntegrations
+      .filter((row) => new Date(row.created_at) >= thirtyDaysAgo)
+      .map((row) => row.user_address),
+  ];
+  const wau = new Set(
+    weeklyUsers
   ).size;
   const mau = new Set(
-    completed
-      .filter((row) => new Date(row.created_at) >= thirtyDaysAgo)
-      .map((row) => row.user_address)
+    monthlyUsers
   ).size;
-  const users = new Set(completed.map((row) => row.user_address)).size;
+  const users = new Set([
+    ...completed.map((row) => row.user_address),
+    ...completedIntegrations.map((row) => row.user_address),
+  ]).size;
   const volumeUsd = getVolumeUsd(completed);
   const integrationVolumeUsd = completedIntegrations.reduce(
     (sum, row) => sum + atomicUsdt(row.input_amount),
     0
   );
-  const integrationUsers = new Set(
-    completedIntegrations.map((row) => row.user_address)
-  ).size;
-  const buyVolumeUsd = getVolumeUsd(completedBuys);
+  const todayIntegrationVolumeUsd = todayIntegrations.reduce(
+    (sum, row) => sum + atomicUsdt(row.input_amount),
+    0
+  );
+  const buyVolumeUsd = getVolumeUsd(completedBuys) + integrationVolumeUsd;
   const sellVolumeUsd = getVolumeUsd(completedSells);
   const feeUsd = completed.reduce((sum, row) => sum + metricNumber(row.fee_usd), 0);
   const copmReceived = completedBuys.reduce(
     (sum, row) => sum + metricNumber(row.copm_received),
     0
-  );
+  ) +
+    completedIntegrations.reduce(
+      (sum, row) => sum + atomicCopm(row.actual_output_amount),
+      0
+    );
   const copmSold = completedSells.reduce(
     (sum, row) => sum + metricNumber(row.requested_copm),
     0
@@ -225,13 +256,20 @@ export default async function AnalyticsPage() {
   const txCount = completed.reduce(
     (sum, row) => sum + asArray(row.swap_tx_hashes).length,
     0
-  );
+  ) + completedIntegrations.length;
   const transferVolume = completedTransfers.reduce(
     (sum, row) => sum + metricNumber(row.copm_amount),
     0
   );
   const tokenTable = Object.entries(
-    completed.reduce<Record<string, { count: number; usd: number }>>((acc, row) => {
+    completedIntegrations.reduce(
+      (acc, row) => {
+        acc.USDT ??= { count: 0, usd: 0 };
+        acc.USDT.count += 1;
+        acc.USDT.usd += atomicUsdt(row.input_amount);
+        return acc;
+      },
+      completed.reduce<Record<string, { count: number; usd: number }>>((acc, row) => {
       getTokensSpent(row).forEach((token) => {
         if (!token.symbol) return;
         acc[token.symbol] ??= { count: 0, usd: 0 };
@@ -239,7 +277,8 @@ export default async function AnalyticsPage() {
         acc[token.symbol].usd += metricNumber(token.amountUsd);
       });
       return acc;
-    }, {})
+      }, {})
+    )
   ).sort(([, a], [, b]) => b.usd - a.usd);
   const tokenTotalUsd = tokenTable.reduce((sum, [, token]) => sum + token.usd, 0);
 
@@ -270,13 +309,13 @@ export default async function AnalyticsPage() {
             <StatCard
               label="Swaps today"
               tone="bg-[#E1F1EA]"
-              value={number(todayRows.length)}
+              value={number(todayRows.length + todayIntegrations.length)}
             />
             <StatCard
               label="Volume today"
               tone="bg-[#EEF0FA]"
               value={money(
-                getVolumeUsd(todayRows)
+                getVolumeUsd(todayRows) + todayIntegrationVolumeUsd
               )}
             />
             <StatCard
@@ -297,12 +336,6 @@ export default async function AnalyticsPage() {
               tone="bg-[#E1F1EA]"
               value={money(volumeUsd + integrationVolumeUsd)}
               sub={`${money(buyVolumeUsd)} buy · ${money(sellVolumeUsd)} sell`}
-            />
-            <StatCard
-              label="Integration swaps"
-              tone="bg-[#EEF0FA]"
-              value={number(completedIntegrations.length)}
-              sub={`${money(integrationVolumeUsd)} · ${number(integrationUsers)} users`}
             />
             <StatCard
               label="Integrator fees"
@@ -331,8 +364,8 @@ export default async function AnalyticsPage() {
             <StatCard
               label="Completed swaps"
               tone="bg-[#E1F1EA]"
-              value={number(completed.length)}
-              sub={`${number(completedBuys.length)} buys · ${number(completedSells.length)} sells`}
+              value={number(completed.length + completedIntegrations.length)}
+              sub={`${number(completedBuys.length + completedIntegrations.length)} buys · ${number(completedSells.length)} sells`}
             />
             <StatCard
               label="Swap txs"
