@@ -50,6 +50,7 @@ type IntegrationSwapRow = {
   created_at: string;
   error: string | null;
   input_amount: string;
+  input_token: string;
   status: string;
   user_address: string;
 };
@@ -78,9 +79,9 @@ function metricNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function atomicUsdt(value: string | null) {
+function atomicToken(value: string | null, decimals: number) {
   if (!value || !/^[0-9]+$/.test(value)) return 0;
-  return Number(value) / 1_000_000;
+  return Number(value) / 10 ** decimals;
 }
 
 function atomicCopm(value: string | null) {
@@ -189,6 +190,18 @@ export default async function AnalyticsPage() {
   const completedIntegrations = integrationRows.filter(
     (row) => row.status === "confirmed"
   );
+  const getIntegrationInputUsd = (row: IntegrationSwapRow) => {
+    const token = Object.values(targetNetwork.tokens).find(
+      (item) => item.address?.toLowerCase() === row.input_token.toLowerCase()
+    );
+    return atomicToken(row.input_amount, token?.decimals ?? 6);
+  };
+  const getIntegrationInputSymbol = (row: IntegrationSwapRow) => {
+    const token = Object.values(targetNetwork.tokens).find(
+      (item) => item.address?.toLowerCase() === row.input_token.toLowerCase()
+    );
+    return token?.symbol ?? "USDT";
+  };
   const logged = rows.filter((row) => row.status === "logged");
   const failed = [
     ...rows.filter((row) => row.status === "failed" || row.error),
@@ -226,11 +239,11 @@ export default async function AnalyticsPage() {
   ]).size;
   const volumeUsd = getVolumeUsd(completed);
   const integrationVolumeUsd = completedIntegrations.reduce(
-    (sum, row) => sum + atomicUsdt(row.input_amount),
+    (sum, row) => sum + getIntegrationInputUsd(row),
     0
   );
   const todayIntegrationVolumeUsd = todayIntegrations.reduce(
-    (sum, row) => sum + atomicUsdt(row.input_amount),
+    (sum, row) => sum + getIntegrationInputUsd(row),
     0
   );
   const buyVolumeUsd = getVolumeUsd(completedBuys) + integrationVolumeUsd;
@@ -264,9 +277,10 @@ export default async function AnalyticsPage() {
   const tokenTable = Object.entries(
     completedIntegrations.reduce(
       (acc, row) => {
-        acc.USDT ??= { count: 0, usd: 0 };
-        acc.USDT.count += 1;
-        acc.USDT.usd += atomicUsdt(row.input_amount);
+        const symbol = getIntegrationInputSymbol(row);
+        acc[symbol] ??= { count: 0, usd: 0 };
+        acc[symbol].count += 1;
+        acc[symbol].usd += getIntegrationInputUsd(row);
         return acc;
       },
       completed.reduce<Record<string, { count: number; usd: number }>>((acc, row) => {

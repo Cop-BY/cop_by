@@ -1,6 +1,7 @@
 # COP By Integrations API
 
-This API lets approved partners prepare a `USDT -> COPm` swap for their own UI.
+This API lets approved partners prepare a `USDT`, `USDC`, or `USDm` to `COPm`
+swap for their own UI.
 COP By does not custody funds and does not deposit into partner contracts. The user
 signs the returned transaction from their own wallet and receives COPm directly.
 
@@ -29,6 +30,17 @@ Content-Type: application/json
 }
 ```
 
+Supported `fromToken` values:
+
+```txt
+USDT
+USDC
+USDm
+```
+
+`fromAmount` must use the token's onchain decimals. USDT and USDC use 6 decimals;
+USDm uses 18 decimals.
+
 Response:
 
 ```json
@@ -45,8 +57,9 @@ Response:
 }
 ```
 
-If the user has not approved USDT for `approvalTarget`, the partner UI must ask
-the user to approve USDT before sending the swap transaction.
+If the user has not approved the selected input token for `approvalTarget`, the
+partner UI must ask the user to approve that token before sending the swap
+transaction.
 
 ## Confirm Swap
 
@@ -64,4 +77,4 @@ Content-Type: application/json
 
 The endpoint validates that the transaction matches the prepared swap and that
 the user received COPm. Confirmed swaps are stored in `integration_swap_intents`
-and shown in analytics as integration volume.
+and included in COP By analytics totals.
