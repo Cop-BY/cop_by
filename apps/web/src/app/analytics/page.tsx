@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-import { ensureSwapTable, ensureTransferTable, getSql } from "@/lib/db";
+import {
+  ensureIntegrationSwapTable,
+  ensureSwapTable,
+  ensureTransferTable,
+  getSql,
+} from "@/lib/db";
 import { getTargetNetwork } from "@/lib/network-config";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +45,15 @@ type TransferRow = {
   tx_hash: string | null;
 };
 
+type IntegrationSwapRow = {
+  actual_output_amount: string | null;
+  created_at: string;
+  error: string | null;
+  input_amount: string;
+  status: string;
+  user_address: string;
+};
+
 function asArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
@@ -62,6 +76,11 @@ function metricNumber(value: unknown) {
   const normalized = value.replace(/,/g, "").trim();
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function atomicUsdt(value: string | null) {
+  if (!value || !/^[0-9]+$/.test(value)) return 0;
+  return Number(value) / 1_000_000;
 }
 
 function percent(value: number) {
@@ -113,6 +132,16 @@ async function getTransferRows() {
   `) as TransferRow[];
 }
 
+async function getIntegrationRows() {
+  await ensureIntegrationSwapTable();
+  return (await getSql()`
+    SELECT *
+    FROM integration_swap_intents
+    ORDER BY created_at DESC
+    LIMIT 5000
+  `) as IntegrationSwapRow[];
+}
+
 function StatCard({
   label,
   tone,
@@ -138,6 +167,7 @@ function StatCard({
 export default async function AnalyticsPage() {
   const rows = await getRows();
   const transfers = await getTransferRows();
+  const integrationRows = await getIntegrationRows();
   const targetNetwork = getTargetNetwork();
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -150,6 +180,9 @@ export default async function AnalyticsPage() {
   const completedSells = completed.filter((row) => row.swap_type === "sell");
   const completedTransfers = transfers.filter((row) =>
     ["confirmed", "logged"].includes(row.status)
+  );
+  const completedIntegrations = integrationRows.filter(
+    (row) => row.status === "confirmed"
   );
   const logged = rows.filter((row) => row.status === "logged");
   const failed = rows.filter((row) => row.status === "failed" || row.error);
@@ -166,6 +199,13 @@ export default async function AnalyticsPage() {
   ).size;
   const users = new Set(completed.map((row) => row.user_address)).size;
   const volumeUsd = getVolumeUsd(completed);
+  const integrationVolumeUsd = completedIntegrations.reduce(
+    (sum, row) => sum + atomicUsdt(row.input_amount),
+    0
+  );
+  const integrationUsers = new Set(
+    completedIntegrations.map((row) => row.user_address)
+  ).size;
   const buyVolumeUsd = getVolumeUsd(completedBuys);
   const sellVolumeUsd = getVolumeUsd(completedSells);
   const feeUsd = completed.reduce((sum, row) => sum + metricNumber(row.fee_usd), 0);
@@ -255,8 +295,14 @@ export default async function AnalyticsPage() {
             <StatCard
               label="Volume"
               tone="bg-[#E1F1EA]"
-              value={money(volumeUsd)}
+              value={money(volumeUsd + integrationVolumeUsd)}
               sub={`${money(buyVolumeUsd)} buy · ${money(sellVolumeUsd)} sell`}
+            />
+            <StatCard
+              label="Integration swaps"
+              tone="bg-[#EEF0FA]"
+              value={number(completedIntegrations.length)}
+              sub={`${money(integrationVolumeUsd)} · ${number(integrationUsers)} users`}
             />
             <StatCard
               label="Integrator fees"

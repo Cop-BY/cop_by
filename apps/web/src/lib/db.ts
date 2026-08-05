@@ -148,3 +148,59 @@ export async function ensureAgentTradeTable() {
     ADD COLUMN IF NOT EXISTS actual_output_amount TEXT
   `;
 }
+
+export async function ensureIntegrationApiKeyTable() {
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS integration_api_keys (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      public_key_id TEXT UNIQUE,
+      key_hash TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'active',
+      allowed_origins JSONB NOT NULL DEFAULT '[]'::jsonb,
+      rate_limit_per_minute INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    ALTER TABLE integration_api_keys
+    ADD COLUMN IF NOT EXISTS public_key_id TEXT UNIQUE
+  `;
+}
+
+export async function ensureIntegrationSwapTable() {
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS integration_swap_intents (
+      intent_id TEXT PRIMARY KEY,
+      integration_id TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      chain_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      input_token TEXT NOT NULL,
+      output_token TEXT NOT NULL,
+      input_amount TEXT NOT NULL,
+      quoted_output_amount TEXT,
+      actual_output_amount TEXT,
+      min_output_amount TEXT,
+      squid_request_id TEXT,
+      squid_quote_id TEXT,
+      approval_target TEXT,
+      tx_to TEXT,
+      tx_data TEXT,
+      tx_value TEXT,
+      swap_tx_hash TEXT,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS integration_swaps_integration_created_idx
+    ON integration_swap_intents (integration_id, created_at DESC)
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS integration_swaps_user_created_idx
+    ON integration_swap_intents (user_address, created_at DESC)
+  `;
+}
