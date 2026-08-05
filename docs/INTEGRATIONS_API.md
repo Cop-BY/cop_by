@@ -57,8 +57,9 @@ Response:
 }
 ```
 
-If the user has not approved USDT for `approvalTarget`, the partner UI must ask
-the user to approve USDT before sending the swap transaction.
+If the user has not approved the selected input token for `approvalTarget`, the
+partner UI must ask the user to approve that token before sending the swap
+transaction.
 
 ## Confirm Swap
 
@@ -76,4 +77,4 @@ Content-Type: application/json
 
 The endpoint validates that the transaction matches the prepared swap and that
 the user received COPm. Confirmed swaps are stored in `integration_swap_intents`
-and shown in analytics as integration volume.
+and included in COP By analytics totals.
