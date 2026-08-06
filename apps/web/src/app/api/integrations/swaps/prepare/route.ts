@@ -9,13 +9,14 @@ import { getSquidCopmRoute } from "@/lib/squid-config";
 
 type PrepareIntegrationSwapBody = {
   fromAmount?: string;
-  fromToken?: "USDC" | "USDm" | "USDT";
+  fromToken?: "COPm" | "USDC" | "USDm" | "USDT";
   slippage?: number;
+  toToken?: "COPm" | "USDT";
   userAddress?: string;
 };
 
-const SUPPORTED_INPUT_TOKENS = ["USDT", "USDC", "USDm"] as const;
-type SupportedInputToken = (typeof SUPPORTED_INPUT_TOKENS)[number];
+const SUPPORTED_TOKENS = ["COPm", "USDT", "USDC", "USDm"] as const;
+type SupportedToken = (typeof SUPPORTED_TOKENS)[number];
 
 function createIntentId() {
   return keccak256(toBytes(crypto.randomUUID()));
@@ -36,13 +37,20 @@ function parseSlippage(value: unknown) {
   return slippage;
 }
 
-function parseInputToken(value: unknown): SupportedInputToken | null {
-  if (!value) return "USDT";
-  if (SUPPORTED_INPUT_TOKENS.includes(value as SupportedInputToken)) {
-    return value as SupportedInputToken;
+function parseToken(value: unknown, fallback: SupportedToken): SupportedToken | null {
+  if (!value) return fallback;
+  if (SUPPORTED_TOKENS.includes(value as SupportedToken)) {
+    return value as SupportedToken;
   }
 
   return null;
+}
+
+function getTokenConfig(targetNetwork: ReturnType<typeof getTargetNetwork>, symbol: SupportedToken) {
+  if (symbol === "COPm") return targetNetwork.tokens.copm;
+  if (symbol === "USDC") return targetNetwork.tokens.usdc;
+  if (symbol === "USDm") return targetNetwork.tokens.usdm;
+  return targetNetwork.tokens.usdt;
 }
 
 export async function POST(request: Request) {
@@ -54,10 +62,30 @@ export async function POST(request: Request) {
     if (!body.userAddress || !isAddress(body.userAddress)) {
       return NextResponse.json({ error: "Invalid user address" }, { status: 400 });
     }
-    const inputTokenSymbol = parseInputToken(body.fromToken);
+    const inputTokenSymbol = parseToken(body.fromToken, "USDT");
     if (!inputTokenSymbol) {
       return NextResponse.json(
-        { error: "Only USDT, USDC, or USDm to COPm is supported" },
+        { error: "Only USDT, USDC, USDm, or COPm is supported" },
+        { status: 400 }
+      );
+    }
+    const outputTokenSymbol = parseToken(
+      body.toToken,
+      inputTokenSymbol === "COPm" ? "USDT" : "COPm"
+    );
+    if (!outputTokenSymbol) {
+      return NextResponse.json(
+        { error: "Only COPm or USDT output is supported" },
+        { status: 400 }
+      );
+    }
+    const isEntrySwap =
+      ["USDT", "USDC", "USDm"].includes(inputTokenSymbol) &&
+      outputTokenSymbol === "COPm";
+    const isExitSwap = inputTokenSymbol === "COPm" && outputTokenSymbol === "USDT";
+    if (!isEntrySwap && !isExitSwap) {
+      return NextResponse.json(
+        { error: "Supported pairs are USDT/USDC/USDm to COPm and COPm to USDT" },
         { status: 400 }
       );
     }
@@ -70,16 +98,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const inputTokenConfig =
-      inputTokenSymbol === "USDC"
-        ? targetNetwork.tokens.usdc
-        : inputTokenSymbol === "USDm"
-          ? targetNetwork.tokens.usdm
-          : targetNetwork.tokens.usdt;
+    const inputTokenConfig = getTokenConfig(targetNetwork, inputTokenSymbol);
+    const outputTokenConfig = getTokenConfig(targetNetwork, outputTokenSymbol);
     const inputToken = inputTokenConfig.address;
-    const copm = targetNetwork.tokens.copm.address;
-    if (!inputToken || !copm) {
-      throw new Error(`Missing ${inputTokenSymbol}/COPm token config`);
+    const outputToken = outputTokenConfig.address;
+    if (!inputToken || !outputToken) {
+      throw new Error(`Missing ${inputTokenSymbol}/${outputTokenSymbol} token config`);
     }
 
     const inputAmount = parseAtomicAmount(body.fromAmount);
@@ -91,7 +115,7 @@ export async function POST(request: Request) {
       slippage: parseSlippage(body.slippage),
       toAddress: body.userAddress as Address,
       toChain: targetNetwork.squidChainId,
-      toToken: copm,
+      toToken: outputToken,
     });
 
     const tx = routeResult.route?.transactionRequest;
@@ -140,7 +164,7 @@ export async function POST(request: Request) {
         ${targetNetwork.chainId},
         'prepared',
         ${inputToken},
-        ${copm},
+        ${outputToken},
         ${inputAmount.toString()},
         ${quotedOutputAmount.toString()},
         ${minOutputAmount.toString()},
@@ -155,7 +179,9 @@ export async function POST(request: Request) {
     `;
 
     return NextResponse.json({
-      expectedCopm: quotedOutputAmount.toString(),
+      expectedCopm:
+        outputTokenSymbol === "COPm" ? quotedOutputAmount.toString() : undefined,
+      expectedOutputAmount: quotedOutputAmount.toString(),
       intentId,
       integration: auth.integration,
       route: {
@@ -172,6 +198,11 @@ export async function POST(request: Request) {
           address: inputToken,
           decimals: inputTokenConfig.decimals,
           symbol: inputTokenConfig.symbol,
+        },
+        outputToken: {
+          address: outputToken,
+          decimals: outputTokenConfig.decimals,
+          symbol: outputTokenConfig.symbol,
         },
         to: tx.target,
         value: "0",

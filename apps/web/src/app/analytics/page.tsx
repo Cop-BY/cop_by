@@ -51,6 +51,8 @@ type IntegrationSwapRow = {
   error: string | null;
   input_amount: string;
   input_token: string;
+  output_token: string;
+  quoted_output_amount: string | null;
   status: string;
   user_address: string;
 };
@@ -190,18 +192,40 @@ export default async function AnalyticsPage() {
   const completedIntegrations = integrationRows.filter(
     (row) => row.status === "confirmed"
   );
-  const getIntegrationInputUsd = (row: IntegrationSwapRow) => {
-    const token = Object.values(targetNetwork.tokens).find(
-      (item) => item.address?.toLowerCase() === row.input_token.toLowerCase()
+  const getTokenByAddress = (address: string) =>
+    Object.values(targetNetwork.tokens).find(
+      (item) => item.address?.toLowerCase() === address.toLowerCase()
     );
+  const isUsdStable = (symbol?: string) =>
+    symbol === "USDT" || symbol === "USDC" || symbol === "USDm";
+  const getIntegrationInputToken = (row: IntegrationSwapRow) =>
+    getTokenByAddress(row.input_token);
+  const getIntegrationOutputToken = (row: IntegrationSwapRow) =>
+    getTokenByAddress(row.output_token);
+  const getIntegrationInputUsd = (row: IntegrationSwapRow) => {
+    const token = getIntegrationInputToken(row);
+    if (!isUsdStable(token?.symbol)) return 0;
     return atomicToken(row.input_amount, token?.decimals ?? 6);
   };
+  const getIntegrationOutputUsd = (row: IntegrationSwapRow) => {
+    const token = getIntegrationOutputToken(row);
+    if (!isUsdStable(token?.symbol)) return 0;
+    return atomicToken(row.actual_output_amount ?? row.quoted_output_amount, token?.decimals ?? 6);
+  };
+  const getIntegrationVolumeUsd = (row: IntegrationSwapRow) =>
+    getIntegrationInputUsd(row) || getIntegrationOutputUsd(row);
   const getIntegrationInputSymbol = (row: IntegrationSwapRow) => {
-    const token = Object.values(targetNetwork.tokens).find(
-      (item) => item.address?.toLowerCase() === row.input_token.toLowerCase()
-    );
+    const token = getIntegrationInputToken(row);
     return token?.symbol ?? "USDT";
   };
+  const getIntegrationOutputSymbol = (row: IntegrationSwapRow) =>
+    getIntegrationOutputToken(row)?.symbol;
+  const completedIntegrationBuys = completedIntegrations.filter(
+    (row) => getIntegrationOutputSymbol(row) === "COPm"
+  );
+  const completedIntegrationSells = completedIntegrations.filter(
+    (row) => getIntegrationInputSymbol(row) === "COPm"
+  );
   const logged = rows.filter((row) => row.status === "logged");
   const failed = [
     ...rows.filter((row) => row.status === "failed" || row.error),
@@ -239,32 +263,44 @@ export default async function AnalyticsPage() {
   ]).size;
   const volumeUsd = getVolumeUsd(completed);
   const integrationVolumeUsd = completedIntegrations.reduce(
-    (sum, row) => sum + getIntegrationInputUsd(row),
+    (sum, row) => sum + getIntegrationVolumeUsd(row),
     0
   );
   const todayIntegrationVolumeUsd = todayIntegrations.reduce(
-    (sum, row) => sum + getIntegrationInputUsd(row),
+    (sum, row) => sum + getIntegrationVolumeUsd(row),
     0
   );
-  const buyVolumeUsd = getVolumeUsd(completedBuys) + integrationVolumeUsd;
-  const sellVolumeUsd = getVolumeUsd(completedSells);
+  const buyVolumeUsd =
+    getVolumeUsd(completedBuys) +
+    completedIntegrationBuys.reduce((sum, row) => sum + getIntegrationVolumeUsd(row), 0);
+  const sellVolumeUsd =
+    getVolumeUsd(completedSells) +
+    completedIntegrationSells.reduce((sum, row) => sum + getIntegrationVolumeUsd(row), 0);
   const feeUsd = completed.reduce((sum, row) => sum + metricNumber(row.fee_usd), 0);
   const copmReceived = completedBuys.reduce(
     (sum, row) => sum + metricNumber(row.copm_received),
     0
   ) +
-    completedIntegrations.reduce(
+    completedIntegrationBuys.reduce(
       (sum, row) => sum + atomicCopm(row.actual_output_amount),
       0
     );
   const copmSold = completedSells.reduce(
     (sum, row) => sum + metricNumber(row.requested_copm),
     0
-  );
+  ) +
+    completedIntegrationSells.reduce(
+      (sum, row) => sum + atomicCopm(row.input_amount),
+      0
+    );
   const usdtReceived = completedSells.reduce(
     (sum, row) => sum + metricNumber(row.output_amount),
     0
-  );
+  ) +
+    completedIntegrationSells.reduce(
+      (sum, row) => sum + getIntegrationOutputUsd(row),
+      0
+    );
   const multiToken = completed.filter((row) => getTokensSpent(row).length > 1).length;
   const txCount = completed.reduce(
     (sum, row) => sum + asArray(row.swap_tx_hashes).length,
@@ -280,7 +316,7 @@ export default async function AnalyticsPage() {
         const symbol = getIntegrationInputSymbol(row);
         acc[symbol] ??= { count: 0, usd: 0 };
         acc[symbol].count += 1;
-        acc[symbol].usd += getIntegrationInputUsd(row);
+        acc[symbol].usd += getIntegrationVolumeUsd(row);
         return acc;
       },
       completed.reduce<Record<string, { count: number; usd: number }>>((acc, row) => {
@@ -379,7 +415,7 @@ export default async function AnalyticsPage() {
               label="Completed swaps"
               tone="bg-[#E1F1EA]"
               value={number(completed.length + completedIntegrations.length)}
-              sub={`${number(completedBuys.length + completedIntegrations.length)} buys · ${number(completedSells.length)} sells`}
+              sub={`${number(completedBuys.length + completedIntegrationBuys.length)} buys · ${number(completedSells.length + completedIntegrationSells.length)} sells`}
             />
             <StatCard
               label="Swap txs"

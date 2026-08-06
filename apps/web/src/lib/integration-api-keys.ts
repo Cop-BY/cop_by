@@ -38,6 +38,18 @@ export function hashIntegrationApiKey(apiKey: string) {
   return createHmac("sha256", pepper).update(apiKey).digest("hex");
 }
 
+function getInvalidApiKeyResponse() {
+  return NextResponse.json({ error: "Invalid integration API key" }, { status: 401 });
+}
+
+function tryHashIntegrationApiKey(apiKey: string) {
+  try {
+    return hashIntegrationApiKey(apiKey);
+  } catch {
+    return null;
+  }
+}
+
 function parseApiKey(apiKey: string): ParsedApiKey {
   const match = apiKey.match(/^copby_live_pk_([A-Za-z0-9_-]{6,32})\.([A-Za-z0-9_-]{24,})$/);
   if (!match) return { raw: apiKey, secret: apiKey };
@@ -80,7 +92,10 @@ export async function requireIntegrationApiKey(request: Request): Promise<
 
   await ensureIntegrationApiKeyTable();
   const parsed = parseApiKey(apiKey);
-  const keyHash = hashIntegrationApiKey(parsed.secret);
+  const keyHash = tryHashIntegrationApiKey(parsed.secret);
+  if (!keyHash) {
+    return { response: getInvalidApiKeyResponse() };
+  }
   const [row] = parsed.publicKeyId
     ? ((await getSql()`
         SELECT id, name, public_key_id, key_hash, status, allowed_origins
@@ -96,9 +111,7 @@ export async function requireIntegrationApiKey(request: Request): Promise<
       `) as IntegrationApiKeyRow[]);
 
   if (!row || row.status !== "active" || !hashesMatch(keyHash, row.key_hash)) {
-    return {
-      response: NextResponse.json({ error: "Invalid integration API key" }, { status: 401 }),
-    };
+    return { response: getInvalidApiKeyResponse() };
   }
 
   if (!isOriginAllowed(row, request)) {

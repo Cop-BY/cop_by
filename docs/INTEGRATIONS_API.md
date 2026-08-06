@@ -1,9 +1,9 @@
 # COP By Integrations API
 
-This API lets approved partners prepare a `USDT`, `USDC`, or `USDm` to `COPm`
-swap for their own UI.
+This API lets approved partners prepare COP By swaps for their own UI.
 COP By does not custody funds and does not deposit into partner contracts. The user
-signs the returned transaction from their own wallet and receives COPm directly.
+signs the returned transaction from their own wallet and receives the output token
+directly.
 
 ## Auth
 
@@ -25,21 +25,35 @@ Content-Type: application/json
 {
   "userAddress": "0xUser",
   "fromToken": "USDT",
+  "toToken": "COPm",
   "fromAmount": "1000000",
   "slippage": 0.3
 }
 ```
 
-Supported `fromToken` values:
+Exit example:
+
+```json
+{
+  "userAddress": "0xUser",
+  "fromToken": "COPm",
+  "toToken": "USDT",
+  "fromAmount": "3000000000000000000000",
+  "slippage": 0.3
+}
+```
+
+Supported pairs:
 
 ```txt
-USDT
-USDC
-USDm
+USDT -> COPm
+USDC -> COPm
+USDm -> COPm
+COPm -> USDT
 ```
 
 `fromAmount` must use the token's onchain decimals. USDT and USDC use 6 decimals;
-USDm uses 18 decimals.
+USDm and COPm use 18 decimals.
 
 Response:
 
@@ -47,15 +61,29 @@ Response:
 {
   "intentId": "0x...",
   "expectedCopm": "3218000000000000000000",
+  "expectedOutputAmount": "3218000000000000000000",
   "transaction": {
     "approvalTarget": "0x...",
     "from": "0xUser",
+    "inputToken": {
+      "address": "0x...",
+      "decimals": 6,
+      "symbol": "USDT"
+    },
+    "outputToken": {
+      "address": "0x...",
+      "decimals": 18,
+      "symbol": "COPm"
+    },
     "to": "0xSquidTarget",
     "data": "0x...",
     "value": "0"
   }
 }
 ```
+
+`expectedOutputAmount` is always returned. `expectedCopm` is returned only when
+the output token is COPm for backwards compatibility.
 
 If the user has not approved the selected input token for `approvalTarget`, the
 partner UI must ask the user to approve that token before sending the swap
@@ -76,5 +104,5 @@ Content-Type: application/json
 ```
 
 The endpoint validates that the transaction matches the prepared swap and that
-the user received COPm. Confirmed swaps are stored in `integration_swap_intents`
-and included in COP By analytics totals.
+the user received the expected output token. Confirmed swaps are stored in
+`integration_swap_intents` and included in COP By analytics totals.
