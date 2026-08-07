@@ -64,30 +64,24 @@ async function fetchCurrencyApiUsdCopRate(): Promise<UsdCopReference | null> {
 }
 
 export async function fetchLatestUsdCopRate() {
-  const responses = await Promise.all([
-    fetchCoinGeckoUsdCopRate(),
+  const [currencyApiReference, coinGeckoReference] = await Promise.all([
     fetchCurrencyApiUsdCopRate(),
+    fetchCoinGeckoUsdCopRate(),
   ]);
-  const references: UsdCopReference[] = responses.filter(
+  const references = [currencyApiReference, coinGeckoReference].filter(
     (reference): reference is UsdCopReference => reference !== null
   );
+  const primaryReference = currencyApiReference ?? coinGeckoReference;
 
-  if (!references.length) return null;
-
-  const copPerUsd =
-    references.reduce((sum, reference) => sum + reference.copPerUsd, 0) /
-    references.length;
+  if (!primaryReference) return null;
 
   return {
-    copPerUsd,
+    copPerUsd: primaryReference.copPerUsd,
     date: references
       .map((reference) => reference.date)
       .filter(Boolean)
       .join(" / "),
     references,
-    source:
-      references.length === 1
-        ? references[0].source
-        : `average:${references.map((reference) => reference.source).join("+")}`,
+    source: primaryReference.source,
   };
 }
