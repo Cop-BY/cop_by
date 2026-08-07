@@ -106,3 +106,57 @@ Content-Type: application/json
 The endpoint validates that the transaction matches the prepared swap and that
 the user received the expected output token. Confirmed swaps are stored in
 `integration_swap_intents` and included in COP By analytics totals.
+
+## List Confirmed Swaps
+
+Use this endpoint as an authoritative fallback when the partner DB is missing a
+record. It returns only swaps confirmed for the integration attached to the API
+key.
+
+```http
+GET /api/integrations/swaps?integration_id=neeru&since=1783300000&limit=100
+Authorization: Bearer copby_live_pk_...secret...
+```
+
+Query params:
+
+```txt
+integration_id  Required. Must match the integration id of the API key.
+since           Optional unix timestamp in seconds. Defaults to 0.
+limit           Optional page size. Defaults to 100, max 500.
+```
+
+`since` is inclusive and filters by `updatedAt`, because confirmation may happen
+after the intent is created. Consumers should deduplicate by `intentId` when
+polling with the returned `nextSince`.
+
+Response:
+
+```json
+{
+  "integrationId": "neeru",
+  "since": 1783300000,
+  "nextSince": 1783300420,
+  "inclusive": true,
+  "limit": 100,
+  "items": [
+    {
+      "intentId": "0x...",
+      "userAddress": "0xUser",
+      "chainId": 42220,
+      "status": "confirmed",
+      "inputToken": "USDT",
+      "outputToken": "COPm",
+      "inputAmount": "1000000",
+      "quotedOutputAmount": "3218000000000000000000",
+      "actualOutputAmount": "3218000000000000000000",
+      "minOutputAmount": "3208000000000000000000",
+      "squidRequestId": "...",
+      "squidQuoteId": "...",
+      "swapTxHash": "0x...",
+      "createdAt": "2026-08-07T00:00:00.000Z",
+      "updatedAt": "2026-08-07T00:01:00.000Z"
+    }
+  ]
+}
+```
