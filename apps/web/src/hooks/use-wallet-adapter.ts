@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  useConnectModal,
+  useAccountModal,
+  useChainModal,
+} from "@rainbow-me/rainbowkit";
+import {
   useAccount,
   useChainId,
   useConnect,
@@ -14,16 +19,6 @@ import {
   getTargetNetwork,
   type NetworkConfig,
 } from "@/lib/network-config";
-
-declare global {
-  interface Window {
-    ethereum?: {
-      isMiniPay?: boolean;
-      isMetaMask?: boolean;
-      request?: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-    };
-  }
-}
 
 export type WalletRuntime = "minipay" | "browser" | "none";
 
@@ -42,6 +37,9 @@ export type WalletAdapterState = {
   connectBrowserWallet: () => void;
   disconnectWallet: () => void;
   switchToTargetNetwork: () => void;
+  openConnectModal?: () => void;
+  openAccountModal?: () => void;
+  openChainModal?: () => void;
 };
 
 export function useWalletAdapter(): WalletAdapterState {
@@ -56,11 +54,16 @@ export function useWalletAdapter(): WalletAdapterState {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
 
+  const { openConnectModal } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
+  const { openChainModal } = useChainModal();
+
   const targetNetwork = getTargetNetwork();
   const currentNetwork = getNetworkByChainId(chainId);
 
   useEffect(() => {
-    const provider = window.ethereum;
+    if (typeof window === "undefined") return;
+    const provider = (window as unknown as { ethereum?: { isMiniPay?: boolean; isMetaMask?: boolean } }).ethereum;
     setIsMetaMask(provider?.isMetaMask === true);
 
     if (provider?.isMiniPay) {
@@ -89,13 +92,37 @@ export function useWalletAdapter(): WalletAdapterState {
     setHasAttemptedMiniPayConnect(true);
   }, [connect, hasAttemptedMiniPayConnect, injectedConnector, runtime]);
 
-  const connectBrowserWallet = () => {
+  const connectBrowserWallet = async () => {
+    // 1. Direct user activation prompt for injected extensions (e.g. Zeal, MetaMask)
+    if (typeof window !== "undefined") {
+      const eth = (window as unknown as { ethereum?: { request?: (args: { method: string }) => Promise<unknown> } }).ethereum;
+      if (eth?.request) {
+        try {
+          await eth.request({ method: "eth_requestAccounts" });
+        } catch (err) {
+          console.warn("Direct eth_requestAccounts prompt:", err);
+        }
+      }
+    }
+
+    // 2. Connect via Wagmi
     const connector = injectedConnector ?? connectors[0];
-    if (!connector) return;
-    connect({ connector });
+    if (connector) {
+      connect({ connector });
+      return;
+    }
+
+    // 3. Fallback to RainbowKit modal
+    if (openConnectModal) {
+      openConnectModal();
+    }
   };
 
   const switchToTargetNetwork = () => {
+    if (openChainModal) {
+      openChainModal();
+      return;
+    }
     switchChain({ chainId: targetNetwork.chainId });
   };
 
@@ -110,9 +137,12 @@ export function useWalletAdapter(): WalletAdapterState {
     isConnected,
     isConnecting,
     isCorrectNetwork: chainId === targetNetwork.chainId,
-    hasProvider: runtime !== "none",
+    hasProvider: runtime !== "none" || Boolean(openConnectModal),
     connectBrowserWallet,
     disconnectWallet: disconnect,
     switchToTargetNetwork,
+    openConnectModal,
+    openAccountModal,
+    openChainModal,
   };
 }
