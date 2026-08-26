@@ -1654,10 +1654,10 @@ export default function Home() {
           />
         ) : homePanel === "details" ? (
           <DetailsPanel
-            approvalUsd={purchasePreview.activationCapUsd}
             balanceCopm={copmBalanceLabel}
             balanceUsd={copmBalanceUsd}
             tokens={tokens}
+            tokenPrices={tokenPrices}
             onClose={() => setHomePanel(null)}
             onReorder={reorderToken}
             onSpend={() => undefined}
@@ -2532,22 +2532,22 @@ function ActivityPanel({
 }
 
 function DetailsPanel({
-  approvalUsd,
   balanceCopm,
   balanceUsd,
   onClose,
   onReorder,
   onSpend,
   onTransfer,
+  tokenPrices,
   tokens,
 }: {
-  approvalUsd: number;
   balanceCopm: string;
   balanceUsd: number;
   onClose: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
   onSpend: () => void;
   onTransfer: () => void;
+  tokenPrices: TokenUsdPrices;
   tokens: PortfolioToken[];
 }) {
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -2689,9 +2689,17 @@ function DetailsPanel({
         <div className="space-y-2">
           {tokens.map((token, index) => {
             const hasBalance = tokenHasBalance(token);
+            const isMuted = !hasBalance;
             const canReorder = hasBalance && orderableTokenCount > 1;
             const previousOrderableIndex = getNextOrderableIndex(index, -1);
             const nextOrderableIndex = getNextOrderableIndex(index, 1);
+            const tokenCap = getApprovalCap(token, tokenPrices);
+            const capUsd = (() => {
+              if (!tokenCap || !token.decimals) return null;
+              const price = getTokenPrice(token, tokenPrices);
+              if (!price) return null;
+              return Number(formatUnits(tokenCap, token.decimals)) * price;
+            })();
 
             return (
               <div
@@ -2699,15 +2707,23 @@ function DetailsPanel({
                 ref={(element) => {
                   rowRefs.current[token.symbol] = element;
                 }}
-                className={`flex min-h-[58px] items-center gap-2 rounded-[8px] bg-[#F7F8F5] px-3 py-2 text-sm transition ${
+                className={`flex min-h-[58px] items-center gap-2 rounded-[8px] px-3 py-2 text-sm transition ${
+                  isMuted
+                    ? "bg-[#ECEEE9]"
+                    : "bg-[#F7F8F5]"
+                } ${
                   draggingSymbol === token.symbol ? "scale-[0.99] shadow-sm" : ""
-                } ${hasBalance ? "" : "opacity-45"}`}
+                }`}
               >
                 <button
                   type="button"
                   aria-label={`Arrastrar ${token.symbol}`}
                   disabled={!canReorder}
-                  className="touch-none rounded-full p-1 text-[#9AA69D] enabled:cursor-grab enabled:active:cursor-grabbing enabled:active:text-[#6D45B8] disabled:cursor-not-allowed disabled:opacity-40"
+                  className={`touch-none rounded-full p-1 enabled:cursor-grab enabled:active:cursor-grabbing enabled:active:text-[#6D45B8] disabled:cursor-not-allowed ${
+                    isMuted
+                      ? "text-[#B8C2B0] disabled:opacity-30"
+                      : "text-[#9AA69D] disabled:opacity-40"
+                  }`}
                   onPointerDown={(event) => startDrag(event, token.symbol)}
                   onPointerUp={endDrag}
                   onPointerCancel={endDrag}
@@ -2717,12 +2733,23 @@ function DetailsPanel({
                 >
                   <GripVertical className="h-5 w-5" />
                 </button>
-                <TokenMark token={token} />
+                <div className={isMuted ? "opacity-45 grayscale" : ""}>
+                  <TokenMark token={token} />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{token.symbol}</p>
-                  <p className="truncate text-xs text-[#66736B]">
+                  <p className={`font-semibold ${isMuted ? "text-[#A3AE9E]" : ""}`}>
+                    {token.symbol}
+                  </p>
+                  <p className={`truncate text-xs ${isMuted ? "text-[#A3AE9E]" : "text-[#66736B]"}`}>
                     {token.balanceDisplay ?? formatUsd(token.balanceUsd)}
                   </p>
+                  {isMuted ? (
+                    <p className="text-[11px] text-[#A3AE9E]">Sin saldo</p>
+                  ) : capUsd != null ? (
+                    <p className="text-[11px] text-[#66736B]">
+                      Permiso: hasta {formatUsd(capUsd)}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-1">
                   <MoveButton
@@ -2742,10 +2769,6 @@ function DetailsPanel({
             );
           })}
         </div>
-      </div>
-
-      <div className="mt-4 rounded-[8px] bg-[#FFF6D8] p-3 text-sm font-semibold">
-        Monto de permiso por token: hasta {formatUsd(approvalUsd)}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
