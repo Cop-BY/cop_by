@@ -2953,10 +2953,9 @@ function CompactCopmRateChart({
       : fallbackChange;
   const isUp = intervalChange >= 0;
   const strokeColor = isUp ? "#0E7C4F" : "#B42318";
-  const pairLabel = pair === "usd-cop" ? "USD/COP" : "COP/USD";
-  const visibleRatePair = pair === "usd-cop" ? "cop-usd" : "usd-cop";
+  const pairLabel = pair === "cop-usd" ? "COP/USD" : "USD/COP";
   const pairRate =
-    visibleRatePair === "usd-cop"
+    pair === "cop-usd"
       ? `1 USD = ${formatCopPerUsd(copPerUsd)} COP`
       : `1 COP = ${formatUsdPerCop(1 / copPerUsd)} USD`;
 
@@ -3084,10 +3083,10 @@ function CompactCopmRateChart({
             d={projectionPath}
             fill="none"
             stroke={strokeColor}
-            strokeDasharray="7 8"
+            strokeDasharray="4 4"
             strokeLinecap="round"
-            strokeWidth="2"
-            opacity="0.55"
+            strokeWidth="1.5"
+            opacity="0.38"
           />
         ) : null}
       </svg>
@@ -3262,6 +3261,7 @@ function BuyCopmScreen({
         <CompactCopmRateChart
           copPerUsd={copPerUsd}
           copVsUsdChange={copVsUsdChange}
+          defaultPair="cop-usd"
         />
       ) : null}
 
