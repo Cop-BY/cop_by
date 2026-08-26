@@ -17,6 +17,7 @@ import {
 } from "viem";
 import { usePublicClient, useSendTransaction, useWriteContract } from "wagmi";
 import {
+  AlertTriangle,
   ArrowLeftRight,
   Check,
   ChevronDown,
@@ -195,19 +196,29 @@ function getFriendlyErrorMessage(error: unknown, context: "swap" | "transfer" = 
     if (error instanceof SquidApiError) {
       console.error("[COP By Squid debug]", formatSquidErrorForSupport(error));
     }
-    return "No encontramos suficiente liquidez para comprar COPm con este token. Intenta con un monto menor o con otro token.";
+    return context === "transfer"
+      ? fallback
+      : "No encontramos suficiente liquidez para comprar COPm con este token. Intenta con un monto menor o con otro token.";
   }
 
   if (lowerMessage.includes("minimum purchase amount")) {
-    return `La compra minima es de ${formatUsd(MIN_PURCHASE_USD)} USD aprox.`;
+    return context === "transfer"
+      ? fallback
+      : `La compra minima es de ${formatUsd(MIN_PURCHASE_USD)} USD aprox.`;
   }
 
   if (lowerMessage.includes("squid route unavailable")) {
-    return "No pudimos obtener una cotizacion de Squid. Intenta de nuevo.";
+    return context === "transfer" ? fallback : "No pudimos obtener una cotizacion de Squid. Intenta de nuevo.";
   }
 
   if (lowerMessage.includes("insufficient")) {
-    return "Saldo o permiso insuficiente para completar esta compra.";
+    return context === "transfer"
+      ? "Saldo insuficiente para realizar esta transferencia."
+      : "Saldo o permiso insuficiente para completar esta compra.";
+  }
+
+  if (context === "transfer" && (lowerMessage.includes("compra") || lowerMessage.includes("purchase"))) {
+    return fallback;
   }
 
   if (message.length > 180 || lowerMessage.includes("request arguments")) {
@@ -651,6 +662,8 @@ export default function Home() {
   const handleActionModeChange = (mode: ActionMode) => {
     setActionMode(mode);
     setHomePanel(null);
+    setTransferConfirming(false);
+    setTransferError(null);
     window.sessionStorage.setItem(ACTION_MODE_STORAGE_KEY, mode);
     if (mode === "transfer") {
       setStep(2);
@@ -1701,6 +1714,7 @@ export default function Home() {
                 setTransferConfirming(false);
                 setTransferError(null);
               }}
+              onBackToEdit={() => setTransferConfirming(false)}
               onGetPesos={() => handleActionModeChange("buy")}
               onMax={() => {
                 if (copmBalance !== undefined) {
@@ -3886,6 +3900,7 @@ function TransferCopmScreen({
   status,
   tokenDecimals,
   onAmountChange,
+  onBackToEdit,
   onGetPesos,
   onMax,
   onRecipientAddressChange,
@@ -3904,6 +3919,7 @@ function TransferCopmScreen({
   status: TransferStatus;
   tokenDecimals: number;
   onAmountChange: (value: string) => void;
+  onBackToEdit?: () => void;
   onGetPesos: () => void;
   onMax: () => void;
   onRecipientAddressChange: (value: string) => void;
@@ -3912,17 +3928,20 @@ function TransferCopmScreen({
   onSaveRecipient: (address: string, alias: string) => SaveRecipientResult;
   onSend: () => void;
 }) {
+  const [copiedAddress, setCopiedAddress] = useState(false);
   const balanceDisplay =
     balance === undefined ? "0" : formatCopmUnits(balance, tokenDecimals);
   const isBusy = status === "confirming" || status === "sending";
-  const buttonLabel =
-    status === "confirming"
-      ? "Confirma en tu wallet"
-      : status === "sending"
-        ? "Enviando"
-        : confirming
-          ? "Enviar pesos"
-          : "Continuar";
+  const matchedSavedRecipient = savedRecipients.find(
+    (item) => item.address.toLowerCase() === recipientAddress.toLowerCase()
+  );
+
+  const handleCopyAddress = async () => {
+    if (!recipientAddress) return;
+    await navigator.clipboard?.writeText(recipientAddress);
+    setCopiedAddress(true);
+    window.setTimeout(() => setCopiedAddress(false), 1500);
+  };
 
   if (!hasCopmBalance) {
     return (
@@ -3938,6 +3957,118 @@ function TransferCopmScreen({
           >
             Obtener pesos
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (confirming) {
+    const confirmButtonLabel =
+      status === "confirming"
+        ? "Confirma en tu wallet"
+        : status === "sending"
+        ? "Enviando..."
+        : "Confirmar y enviar";
+
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="rounded-[8px] border border-[#DDE4DC] bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#EBEFEB] pb-3">
+            <div>
+              <h2 className="text-lg font-semibold text-[#17211B]">
+                Confirma tu envío
+              </h2>
+              <p className="text-xs text-[#66736B]">
+                Revisa cuidadosamente los detalles antes de transferir.
+              </p>
+            </div>
+            {onBackToEdit && (
+              <button
+                type="button"
+                onClick={onBackToEdit}
+                disabled={isBusy}
+                className="rounded-full bg-[#F7F8F5] px-3 py-1 text-xs font-semibold text-[#6D45B8] hover:bg-[#E9DFFC] disabled:opacity-40"
+              >
+                Editar
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <div className="rounded-[8px] bg-[#F7F8F5] p-3.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-[#66736B]">
+                Monto a enviar
+              </span>
+              <p className="mt-1 text-2xl font-bold text-[#17211B]">
+                {formatPesoAmountFromString(amount || "0")}{" "}
+                <span className="text-sm font-semibold text-[#66736B]">pesos (COPm)</span>
+              </p>
+            </div>
+
+            <div className="rounded-[8px] bg-[#F7F8F5] p-3.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-[#66736B]">
+                Destinatario
+              </span>
+              <div className="mt-1 flex items-start justify-between gap-2">
+                <div>
+                  {matchedSavedRecipient?.alias && (
+                    <p className="text-sm font-semibold text-[#17211B]">
+                      {matchedSavedRecipient.alias}
+                    </p>
+                  )}
+                  <p className="font-mono text-sm font-semibold text-[#17211B]">
+                    {formatAddressPreview(recipientAddress)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyAddress()}
+                  className="inline-flex items-center gap-1 shrink-0 rounded-full border border-[#DDE4DC] bg-white px-2.5 py-1 text-xs font-semibold text-[#6D45B8] hover:bg-[#F7F8F5]"
+                >
+                  <Copy className="h-3 w-3" />
+                  {copiedAddress ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-[8px] border border-[#FDE047] bg-[#FEFCE8] p-3.5 text-xs leading-5 text-[#854D0E]">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4.5 w-4.5 shrink-0 text-[#CA8A04] mt-0.5" />
+                <div>
+                  <span className="font-bold text-[#A16207]">
+                    Transferencia irreversible:
+                  </span>{" "}
+                  Los envíos de pesos no se pueden deshacer ni revertir. Asegúrate de que la dirección de destino sea correcta.
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-[8px] bg-[#FDECEC] p-3 text-xs font-medium text-[#8A1F1F]">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              {onBackToEdit && (
+                <Button
+                  variant="outline"
+                  className="h-12 flex-1 rounded-[8px] border-[#DDE4DC] text-sm font-semibold text-[#66736B]"
+                  onClick={onBackToEdit}
+                  disabled={isBusy}
+                >
+                  Volver
+                </Button>
+              )}
+              <Button
+                className="h-12 flex-[2] rounded-[8px] bg-[#6D45B8] text-base font-semibold text-white hover:bg-[#56359A] disabled:bg-[#C8B9E8]"
+                disabled={isBusy}
+                onClick={onSend}
+              >
+                {confirmButtonLabel}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -3985,13 +4116,6 @@ function TransferCopmScreen({
           </button>
         </div>
 
-        {confirming && (
-          <div className="mt-3 rounded-[8px] bg-[#FFF6D8] px-3 py-2 text-sm font-medium leading-5 text-[#17211B]">
-            Enviarás {formatPesoAmountFromString(amount || "0")} pesos a{" "}
-            {formatAddressPreview(recipientAddress)}. Verifica la wallet antes
-            de confirmar.
-          </div>
-        )}
         {error && (
           <div className="mt-3 rounded-[8px] bg-[#FDECEC] px-3 py-2 text-sm font-medium leading-5 text-[#8A1F1F]">
             {error}
@@ -4003,7 +4127,7 @@ function TransferCopmScreen({
           disabled={isBusy}
           onClick={onSend}
         >
-          {buttonLabel}
+          Continuar
         </Button>
       </div>
     </div>
