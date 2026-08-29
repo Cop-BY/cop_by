@@ -21,8 +21,8 @@ const connectors = connectorsForWallets(
     },
   ],
   {
-    appName: "cop_by",
-    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+    appName: "COP By",
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "cop_by",
   }
 );
 
@@ -41,7 +41,7 @@ const wagmiConfig = createConfig({
 const queryClient = new QueryClient();
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -51,7 +51,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider initialChain={getTargetNetwork().chain}>
-          {children}
+          {mounted ? children : null}
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
