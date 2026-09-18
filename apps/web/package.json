@@ -9,6 +9,7 @@
     "start": "next start",
     "agent:fx": "node scripts/agent-fx-strategy.mjs",
     "agent:smoke": "node scripts/agent-smoke-test.mjs",
+    "test:breb": "tsx --test src/lib/breb/breb.test.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.19.0",
     "typescript": "^5.2.2"
   }
 }

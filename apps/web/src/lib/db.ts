@@ -204,3 +204,171 @@ export async function ensureIntegrationSwapTable() {
     ON integration_swap_intents (user_address, created_at DESC)
   `;
 }
+
+export async function ensureBrebTables() {
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS breb_fx_cache (
+      cache_key TEXT PRIMARY KEY,
+      sell_rate TEXT NOT NULL,
+      fetched_at TIMESTAMPTZ NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS breb_quotes (
+      quote_id TEXT PRIMARY KEY,
+      integration_id TEXT NOT NULL,
+      from_token TEXT NOT NULL,
+      destination_cop TEXT,
+      sell_rate TEXT NOT NULL,
+      effective_usd_cop TEXT NOT NULL,
+      source_amount TEXT,
+      source_amount_usd TEXT,
+      net_usdc_to_bridge TEXT,
+      swap_provider TEXT,
+      fees JSONB NOT NULL DEFAULT '[]'::jsonb,
+      payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS bridge_customers (
+      customer_id TEXT PRIMARY KEY,
+      email_normalized TEXT UNIQUE,
+      email_hash TEXT,
+      full_name_hash TEXT,
+      kyc_status TEXT NOT NULL,
+      cop_endorsement TEXT,
+      kyc_link TEXT,
+      tos_link TEXT,
+      kyc_link_expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS bridge_customer_wallets (
+      user_address TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      email_verified_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS bridge_customer_wallets_customer_idx
+    ON bridge_customer_wallets (customer_id)
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS breb_email_otps (
+      id TEXT PRIMARY KEY,
+      email_normalized TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      consumed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS breb_email_otps_lookup_idx
+    ON breb_email_otps (email_normalized, user_address, created_at DESC)
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS bridge_external_accounts (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL,
+      bre_b_key_last4 TEXT,
+      account_owner_name TEXT,
+      verification_status TEXT NOT NULL,
+      validated_bank_name TEXT,
+      validated_document_last4 TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS breb_payouts (
+      payout_id TEXT PRIMARY KEY,
+      integration_id TEXT NOT NULL,
+      user_address TEXT NOT NULL,
+      customer_id TEXT,
+      from_token TEXT NOT NULL,
+      quote_id TEXT,
+      destination_cop TEXT NOT NULL,
+      source_amount TEXT NOT NULL,
+      source_amount_usd TEXT,
+      net_usdc_to_bridge TEXT NOT NULL,
+      effective_usd_cop TEXT,
+      swap_provider TEXT,
+      deposit_address TEXT,
+      deposit_amount TEXT,
+      bridge_transfer_id TEXT,
+      external_account_id TEXT,
+      bre_b_key_last4 TEXT,
+      account_owner_name TEXT,
+      status TEXT NOT NULL,
+      fees JSONB NOT NULL DEFAULT '[]'::jsonb,
+      approval_target TEXT,
+      tx_to TEXT,
+      tx_data TEXT,
+      tx_value TEXT,
+      fee_tx_to TEXT,
+      fee_tx_data TEXT,
+      source_tx_hash TEXT,
+      swap_tx_hash TEXT,
+      idempotency_key TEXT,
+      error TEXT,
+      error_code TEXT,
+      additional_funding_usdc TEXT,
+      deposit_verified_at TIMESTAMPTZ,
+      fees_verified_at TIMESTAMPTZ,
+      bridge_payout_verified_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE UNIQUE INDEX IF NOT EXISTS breb_payouts_source_tx_hash_idx
+    ON breb_payouts (source_tx_hash)
+    WHERE source_tx_hash IS NOT NULL
+  `;
+  await getSql()`
+    CREATE UNIQUE INDEX IF NOT EXISTS breb_payouts_idempotency_idx
+    ON breb_payouts (integration_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS breb_payouts_integration_created_idx
+    ON breb_payouts (integration_id, created_at DESC)
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS breb_payouts_bridge_transfer_idx
+    ON breb_payouts (bridge_transfer_id)
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS breb_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE TABLE IF NOT EXISTS integration_request_logs (
+      id TEXT PRIMARY KEY,
+      integration_id TEXT NOT NULL,
+      path TEXT NOT NULL,
+      method TEXT NOT NULL,
+      status INTEGER,
+      error_code TEXT,
+      latency_ms INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await getSql()`
+    CREATE INDEX IF NOT EXISTS integration_request_logs_integration_created_idx
+    ON integration_request_logs (integration_id, created_at DESC)
+  `;
+}

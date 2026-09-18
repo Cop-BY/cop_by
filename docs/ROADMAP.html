@@ -355,11 +355,12 @@
   <div class="container">
 
     <header>
-      <span class="badge">Product · June 2026</span>
+      <span class="badge">Product · September 2026</span>
       <h1>COP By — Product Roadmap</h1>
       <p class="meta">
         <strong>Focus:</strong> usability and traction &nbsp;·&nbsp;
-        Revenue secondary for now
+        Revenue secondary for now &nbsp;·&nbsp;
+        Fiat rail: Bridge (Abroad discarded — no COP liquidity)
       </p>
     </header>
 
@@ -408,7 +409,7 @@
       <div class="card quote">
         "Turn your MiniPay dollars into pesos you can actually use."
       </div>
-      <p style="color: var(--muted); font-size: 14px;">COPm is the onchain engine; users don't need to understand tokens.</p>
+      <p style="color: var(--muted); font-size: 14px;">COPm is the onchain engine; users don't need to understand tokens. Fiat spend leaves MiniPay as USDC on Celo — Bridge does not list COPm.</p>
     </section>
 
     <!-- Current state -->
@@ -437,7 +438,7 @@
       <p>Two complementary paths, not mutually exclusive:</p>
       <pre>MiniPay wallet
     ├─ Buy COPm (Squid)       → pesos in wallet, P2P, Celo ecosystem
-    └─ Pay via BRE-B (Abroad) → pesos in the real world (bank, Nequi, merchant)</pre>
+    └─ Pay via BRE-B (Bridge) → pesos in the real world (bank, Nequi, merchant)</pre>
 
       <div class="table-wrap">
         <table>
@@ -446,10 +447,13 @@
           </thead>
           <tbody>
             <tr><td>Onchain COPm</td><td>Squid Router</td><td>MiniPay balance, P2P transfers</td></tr>
-            <tr><td>Fiat COP via BRE-B</td><td><a href="https://docs.abroad.finance/" target="_blank" rel="noopener">Abroad</a> (under evaluation)</td><td>Payments to accounts and merchants in Colombia</td></tr>
+            <tr><td>Fiat COP via BRE-B</td><td><a href="https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide" target="_blank" rel="noopener">Bridge</a></td><td>Payments to accounts and merchants in Colombia</td></tr>
           </tbody>
         </table>
       </div>
+      <p style="font-size: 14px; color: var(--muted); margin-top: 0.75rem;">
+        <strong>Discarded:</strong> Abroad — no COP liquidity, so no payout.
+      </p>
     </section>
 
     <!-- Distribution -->
@@ -515,7 +519,7 @@
       <article class="phase phase-1">
         <div class="phase-header">
           <span class="phase-num">Phase 1</span>
-          <span class="phase-title">First real spend: BRE-B with Abroad</span>
+          <span class="phase-title">First real spend: BRE-B with Bridge</span>
           <span class="phase-duration">4–8 weeks</span>
         </div>
         <div class="phase-body">
@@ -523,9 +527,9 @@
             <strong>Overall goal:</strong> Give users a concrete reason to return after converting USD — spend in the real Colombian economy.
           </p>
           <p style="font-size: 14px; margin-bottom: 1rem;">
-            <strong>Candidate provider:</strong>
-            <a href="https://docs.abroad.finance/" target="_blank" rel="noopener">Abroad Finance</a>
-            — USDC/USDT → COP fiat via BRE-B.
+            <strong>Provider:</strong>
+            <a href="https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide" target="_blank" rel="noopener">Bridge</a>
+            — USDC on Celo → COP fiat via Bre-B or Bank Transfer. COP is beta; request access from <code>sales@bridge.xyz</code>.
           </p>
           <div class="table-wrap">
             <table>
@@ -533,23 +537,23 @@
                 <tr><th>#</th><th>Task</th><th>General detail</th><th>Objective</th></tr>
               </thead>
               <tbody>
-                <tr><td>1.1</td><td>Outreach and API access</td><td>Request API keys, sandbox, and workflow documentation from Abroad sales.</td><td>Unblock integration</td></tr>
-                <tr><td>1.2</td><td>Validate compliance requirements</td><td>Confirm KYC per user vs integrator, limits, minimums, and settlement times.</td><td>Design UX without regulatory surprises</td></tr>
-                <tr><td>1.3</td><td>MVP technical flow</td><td>Backend: quote → payout → webhooks. Frontend: COP amount + BRE-B recipient + confirmation.</td><td>First end-to-end BRE-B payment</td></tr>
-                <tr><td>1.4</td><td>"Spend" tab in UI</td><td>Evolve Buy | Transfer into Buy | Send | Spend.</td><td>Unify conversion + spending in one app</td></tr>
+                <tr><td>1.1</td><td>COP enablement</td><td>Request sandbox, API keys, and COP rail activation from Bridge sales.</td><td>Unblock integration</td></tr>
+                <tr><td>1.2</td><td>Validate compliance and KYC UX</td><td>Per-user KYC (Persona) + <code>cop</code> endorsement. Confirm minimums, limits, and settlement times.</td><td>Design UX without regulatory surprises</td></tr>
+                <tr><td>1.3</td><td>MVP technical flow</td><td>Backend: quote → destination verify (key + owner name) → Transfer. Frontend: COP amount + BRE-B key + name + confirmation. Source: USDC or COPm on Celo.</td><td>First end-to-end BRE-B payment</td></tr>
+                <tr><td>1.4</td><td>"Spend" tab in UI</td><td>Evolve Buy | Transfer into Buy | Send | Spend. Include Bridge KYC step.</td><td>Unify conversion + spending in one app</td></tr>
                 <tr><td>1.5</td><td>Persistence and analytics</td><td>Log BRE-B payouts in DB (similar to swaps/transfers).</td><td>Measure adoption and debug failures</td></tr>
-                <tr><td>1.6</td><td>Error handling and states</td><td>Clear states: quoting, processing, completed, failed + messages in Spanish (app UI).</td><td>Trust in fiat payments</td></tr>
+                <tr><td>1.6</td><td>Error handling and states</td><td>Clear states: quoting, KYC pending, processing, completed, failed + messages in Spanish.</td><td>Trust in fiat payments</td></tr>
+                <tr><td>1.7</td><td>Partner portal (Clerk)</td><td>Organizations = integration_id. Staff and partners: keys, volume, txs, fees. Reporting API + dashboard.</td><td>Platform, not miniapp-only</td></tr>
               </tbody>
             </table>
           </div>
           <h3>Target flow</h3>
-          <pre>[How many pesos?] → [To whom? BRE-B key / account] → [Confirm] → [USDC from MiniPay] → [COP via BRE-B]</pre>
-          <h3>Open questions with Abroad (blockers)</h3>
+          <pre>[How many pesos?] → [To whom? BRE-B key + account owner name] → [Bridge KYC if needed] → [Verify] → [Confirm bank / last4] → [USDC from MiniPay on Celo] → [COP via Bridge / BRE-B]</pre>
+          <p style="font-size: 14px; color: var(--muted); margin: 0.75rem 0;">Merchant QR pay is a COP By UX layer after the rail is live — Bridge has no native COP QR API. P2P receive-via-QR does not fit (no third-party individual COP deposits).</p>
+          <h3>Open questions with Bridge (blockers)</h3>
           <ul>
-            <li>MiniPay wallet integration via JWT (<code>/walletAuth</code>)?</li>
-            <li>KYC per end user or at integrator level?</li>
-            <li>Sandbox available before production?</li>
-            <li>USDC only or USDT as well?</li>
+            <li>COP enablement + sandbox on the COP By account?</li>
+            <li>Real Persona KYC drop-off inside MiniPay?</li>
           </ul>
           <h3>Success criteria</h3>
           <ul>
@@ -609,6 +613,7 @@
                 <tr><th>Vertical</th><th>Provider</th><th>When to pursue</th></tr>
               </thead>
               <tbody>
+                <tr><td>Merchant QR pay</td><td>COP By (parse) + Bridge payout to Bre-B key</td><td>After Phase 1 is live; not a native Bridge API</td></tr>
                 <tr><td>Phone top-ups</td><td>TBD (Bemovil, Reloadly, etc.)</td><td>When API exists and Phase 1 &gt; 15% adoption</td></tr>
                 <tr><td>Gift cards (Netflix, etc.)</td><td>TBD</td><td>After choosing a CO catalog</td></tr>
                 <tr><td>Vouchers (Rappi, Uber, Didi)</td><td>TBD</td><td>If there is a partner or clear margin</td></tr>
@@ -638,6 +643,7 @@
                 <tr><td><strong>Multi-approve / Permit2 onchain</strong></td><td>&gt; 30% drop-off on "Activate" step in production</td></tr>
                 <tr><td><strong>Onchain cashback</strong></td><td>Audit, grant (Talent), or regulatory requirement</td></tr>
                 <tr><td><strong>4 payment verticals in parallel</strong></td><td>Discarded — one vertical at a time</td></tr>
+                <tr><td><strong>Abroad Finance</strong></td><td>Discarded — no COP liquidity, so no payout</td></tr>
               </tbody>
             </table>
           </div>
@@ -659,10 +665,11 @@
             <tr><td>2</td><td>Transaction history</td><td><span class="tag med">Medium</span></td><td><span class="tag high">High</span></td></tr>
             <tr><td>3</td><td>Shareable post-tx receipt</td><td><span class="tag low">Low</span></td><td><span class="tag high">High</span></td></tr>
             <tr><td>4</td><td>"Send pesos" as primary action</td><td><span class="tag low">Low</span></td><td><span class="tag high">High</span></td></tr>
-            <tr><td>5</td><td>Contact Abroad → sandbox</td><td><span class="tag med">Ops</span></td><td><span class="tag critical">Critical</span></td></tr>
-            <tr><td>6</td><td>BRE-B MVP (quote + payout + webhook)</td><td><span class="tag high">High</span></td><td><span class="tag critical">Very high</span></td></tr>
-            <tr><td>7</td><td>Offchain referrals</td><td><span class="tag med">Medium</span></td><td><span class="tag med">Medium</span></td></tr>
-            <tr><td>8</td><td>Phone top-ups</td><td>—</td><td><span class="tag blocked">Blocked</span></td></tr>
+            <tr><td>5</td><td>Contact Bridge → COP enablement + sandbox</td><td><span class="tag med">Ops</span></td><td><span class="tag critical">Critical</span></td></tr>
+            <tr><td>6</td><td>BRE-B MVP (Transfer / Liquidation Address + webhook)</td><td><span class="tag high">High</span></td><td><span class="tag critical">Very high</span></td></tr>
+            <tr><td>7</td><td>Partner portal (Clerk orgs, keys, reporting)</td><td><span class="tag med">Medium–high</span></td><td><span class="tag high">High</span></td></tr>
+            <tr><td>8</td><td>Offchain referrals</td><td><span class="tag med">Medium</span></td><td><span class="tag med">Medium</span></td></tr>
+            <tr><td>9</td><td>Phone top-ups</td><td>—</td><td><span class="tag blocked">Blocked</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -681,7 +688,7 @@
     │       │           │
     ▼       ▼           ▼
  COPm     Transfer    BRE-B
-(Squid)   or BRE-B   (Abroad)
+(Squid)   or BRE-B   (Bridge)
     │       │           │
     └───────┴───────────┘
               │
@@ -702,11 +709,11 @@
         </div>
         <div class="stat-card">
           <div class="label">Revenue</div>
-          <div class="value">Traction only for now; existing Squid fee</div>
+          <div class="value">COP By 1% onchain + 0.5% Bridge developer fee; Squid 25 bps extra on COPm swaps. Min 4000 COP and 2 USDC.</div>
         </div>
         <div class="stat-card">
           <div class="label">First spending vertical</div>
-          <div class="value">BRE-B via Abroad (not top-ups — no provider yet)</div>
+          <div class="value">BRE-B via Bridge (USDC on Celo → COP). Abroad discarded for liquidity.</div>
         </div>
         <div class="stat-card">
           <div class="label">Cashback</div>
@@ -724,14 +731,14 @@
       <h2>Immediate next steps</h2>
       <ol class="steps">
         <li><s>Execute <strong>Phase 0</strong></s> ✅ Completed (QA MiniPay, merged to main).</li>
-        <li>Continue <strong>Abroad outreach</strong> for API keys and sandbox.</li>
-        <li>Without API key: BRE-B spec, DB schema, Spend tab UI shell, API stubs.</li>
-        <li>With API access: <strong>BRE-B MVP</strong> (quote + payout + webhooks).</li>
+        <li>Contact <strong>Bridge</strong> (<code>sales@bridge.xyz</code>) for COP enablement and sandbox.</li>
+        <li>Without enablement: BRE-B spec, DB schema, Spend tab UI shell, Bridge client stubs.</li>
+        <li>With COP access: <strong>BRE-B MVP</strong> (Transfer or Liquidation Address + webhooks).</li>
       </ol>
     </section>
 
     <footer>
-      COP By · Product Roadmap · June 2026
+      COP By · Product Roadmap · September 2026
     </footer>
 
   </div>

@@ -1,8 +1,9 @@
 # COP By — Roadmap de producto
 
-> **Última actualización:** junio 2026  
+> **Última actualización:** septiembre 2026  
 > **Enfoque:** usabilidad y tracción (revenue secundario por ahora)  
-> **Fase 0:** ✅ completada (jun 2026) — QA MiniPay aprobado, merge en `main` + fix Squid `prefer` Uniswap V3
+> **Fase 0:** ✅ completada (jun 2026) — QA MiniPay aprobado, merge en `main` + fix Squid `prefer` Uniswap V3  
+> **Rail fiat:** Bridge (COP Bre-B). Abroad descartado por falta de liquidez.
 
 ---
 
@@ -36,7 +37,7 @@
 
 > *"Convierte tus dólares de MiniPay en pesos que puedes usar."*
 
-COPm es el motor onchain; el usuario no tiene que entender tokens.
+COPm es el motor onchain; el usuario no tiene que entender tokens. El gasto fiat sale en **USDC en Celo** hacia Bridge (Bridge no lista COPm).
 
 ---
 
@@ -65,13 +66,15 @@ Dos vías complementarias, no excluyentes:
 ```
 MiniPay wallet
     ├─ Comprar COPm (Squid)      → pesos en wallet, P2P, ecosistema Celo
-    └─ Pagar vía BRE-B (Abroad)  → pesos al mundo real (banco, Nequi, comercio)
+    └─ Pagar vía BRE-B (Bridge)  → pesos al mundo real (banco, Nequi, comercio)
 ```
 
 | Rail | Proveedor | Caso de uso |
 | --- | --- | --- |
 | Onchain COPm | Squid Router | Balance en MiniPay, transferencias P2P |
-| Fiat COP vía BRE-B | [Abroad](https://docs.abroad.finance/) (en evaluación) | Pagos a cuentas y comercios en Colombia |
+| Fiat COP vía BRE-B | [Bridge](https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide) | Pagos a cuentas y comercios en Colombia |
+
+**Descartado:** [Abroad](https://docs.abroad.finance/) — sin liquidez, no hay payout.
 
 ---
 
@@ -115,51 +118,60 @@ MiniPay wallet
 
 ---
 
-### Fase 1 — Primer gasto real: BRE-B con Abroad
+### Fase 1 — Primer gasto real: BRE-B con Bridge
 
-**Duración estimada:** 4–8 semanas (depende de acceso a API Abroad)  
+**Duración estimada:** 4–8 semanas (depende de enablement COP en Bridge)  
 **Objetivo general:** Dar una razón concreta para volver después de convertir USD — gastar en el mundo real colombiano.
 
-**Proveedor candidato:** [Abroad Finance](https://docs.abroad.finance/) — USDC/USDT → COP fiat vía BRE-B.
+**Proveedor:** [Bridge](https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide) — USDC o COPm en Celo → COP fiat vía Bre-B. COPm se swappea a USDC (Squid, fallback Uniswap V3) antes de Bridge. COP está en beta; hay que pedir acceso a `sales@bridge.xyz`.
+
+**Forma:** servicio de backend (Integrations API). Lo consume la miniapp y otras apps. KYC es de Bridge (Persona), no de COP By.
+
+**Plan técnico:** [BRIDGE_IMPLEMENTATION.md](./BRIDGE_IMPLEMENTATION.md) — API, cotización 4–6 h, fee COP By 1% + developer Bridge 0,5%, mínimo 4000 COP / 2 USDC.
 
 | # | Tarea | Detalle general | Objetivo |
 | --- | --- | --- | --- |
-| 1.1 | Contacto y acceso API | Solicitar API keys, sandbox y documentación de workflows a Abroad sales. | Desbloquear integración |
-| 1.2 | Validar requisitos de compliance | Confirmar KYC por usuario vs integrador, límites, mínimos y tiempos de settlement. | Diseñar UX sin sorpresas regulatorias |
-| 1.3 | Flujo técnico MVP | Backend: quote → payout → webhooks. Frontend: monto COP + destinatario BRE-B + confirmación. | Primer pago BRE-B end-to-end |
-| 1.4 | Tab "Gastar" en UI | Evolucionar `Comprar \| Transferir` hacia `Comprar \| Enviar \| Gastar`. | Unificar conversión + gasto en una app |
+| 1.1 | Enablement COP | Solicitar sandbox, API keys y activación del rail COP a Bridge sales. | Desbloquear integración |
+| 1.2 | Validar compliance y UX KYC | KYC por usuario (Persona) + endorsement `cop`. Confirmar mínimos, límites y settlement. | Diseñar UX sin sorpresas regulatorias |
+| 1.3 | Flujo técnico MVP | Servicio backend: quote cacheada → verify destino (llave + nombre) → payout Bridge. Source USDC o COPm. Frontend miniapp y otras apps consumen la misma API. | Primer pago BRE-B end-to-end |
+| 1.4 | Tab "Gastar" en UI | Evolucionar `Comprar \| Transferir` hacia `Comprar \| Enviar \| Gastar`. Incluir paso KYC Bridge. | Unificar conversión + gasto en una app |
 | 1.5 | Persistencia y analytics | Registrar payouts BRE-B en DB (similar a swaps/transfers). | Medir adopción y depurar fallos |
-| 1.6 | Manejo de errores y estados | Estados claros: cotizando, procesando, completado, fallido + mensajes en español. | Confianza en pagos fiat |
+| 1.6 | Manejo de errores y estados | Estados claros: cotizando, KYC pendiente, procesando, completado, fallido + mensajes en español. | Confianza en pagos fiat |
+| 1.7 | Portal partner (Clerk) | Organizations = `integration_id`. Staff y partners: keys, volumen, txs, fees. API de reporting + dashboard. | Plataforma, no solo miniapp |
 
 **Flujo objetivo**
 
 ```
-[¿Cuántos pesos?] → [¿A quién? llave BRE-B / cuenta] → [Confirmar] → [USDC desde MiniPay] → [COP vía BRE-B]
+[¿Cuántos pesos?] → [¿A quién? llave BRE-B + nombre del titular]
+    → [KYC Bridge si falta] → [Verify Bridge] → [Confirmar banco / last4]
+    → [USDC desde MiniPay en Celo] → [COP vía Bridge / BRE-B]
 ```
 
-**Preguntas abiertas con Abroad (bloqueantes para go-live)**
+Si el usuario paga con COPm, el backend cotiza COPm→USDC (Squid, fallback Uniswap V3) y el USDC neto llega al depósito de Bridge. KYC es hosted de Bridge, igual desde la miniapp o desde otra app.
 
-- ¿Integración con wallet MiniPay vía JWT (`/walletAuth`)?
-- ¿KYC por usuario final o a nivel integrador?
-- ¿Sandbox disponible antes de producción?
-- ¿Solo USDC o también USDT?
+**Pagos con QR:** Bridge no tiene QR nativo para COP (sí para PIX/BRL). Escanear un QR de comercio es capa UX de COP By: parsear llave Bre-B → External Account → Transfer. No es el MVP; va después del rail live. Recibir P2P vía QR no encaja: depósitos COP de terceros individuos no están permitidos.
 
-#### Avance sin API key (en curso / preparación)
+**Preguntas abiertas con Bridge (bloqueantes para go-live)**
 
-Tareas que no requieren credenciales de Abroad y desbloquean el MVP cuando llegue la key:
+- ¿Enablement COP + sandbox en la cuenta de COP By?
+- ¿Fricción real del KYC Persona en MiniPay (tasa de completación)?
+
+#### Avance sin enablement COP (en curso / preparación)
+
+Tareas que no requieren credenciales de Bridge y desbloquean el MVP cuando llegue el acceso:
 
 | # | Tarea | Detalle | Esfuerzo |
 | --- | --- | --- | --- |
-| 1.2a | Spec de compliance (desk research) | Documentar desde [docs Abroad](https://docs.abroad.finance/) flujos KYC/KYB, límites y webhooks; lista de preguntas abiertas para sales. | Bajo |
-| 1.3a | Modelo de datos BRE-B | Tabla `breb_payouts` en Neon (quote, destinatario, estado, tx onchain, webhook ids) — espejo de swaps/transfers. | Medio |
-| 1.3b | Capa `lib/abroad-client.ts` | Tipos TypeScript + cliente HTTP con mock adapter (`ABROAD_MOCK=true`) para desarrollo local. | Medio |
+| 1.2a | Spec de compliance (desk research) | Documentar desde [docs Bridge COP](https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide) KYC/endorsements, límites, webhooks y Travel Rule; lista de preguntas para sales. | Bajo |
+| 1.3a | Modelo de datos BRE-B | Tabla `breb_payouts` en Neon (quote/transfer id, destinatario, estado, tx onchain, webhook ids) — espejo de swaps/transfers. | Medio |
+| 1.3b | Capa `lib/bridge-client.ts` | Tipos TypeScript + cliente HTTP con mock adapter (`BRIDGE_MOCK=true`) para desarrollo local. | Medio |
 | 1.3c | Endpoints stub | `POST /api/breb/quote`, `POST /api/breb/payout`, `POST /api/breb/webhook` — validación de input, estados, sin llamada real. | Medio |
-| 1.4a | Tab **Gastar** + UI shell | Tercer tab `Obtener \| Enviar \| Gastar`; formulario monto + llave BRE-B + confirmación con estados mock. | Medio |
+| 1.4a | Tab **Gastar** + UI shell | Tercer tab `Obtener \| Enviar \| Gastar`; formulario monto + llave BRE-B + **nombre del titular** + confirmación (verify mock) + placeholder KYC. | Medio |
 | 1.5a | Actividad unificada | Incluir payouts BRE-B en `/activity` cuando exista la tabla. | Bajo |
 | 1.6a | Copy de errores fiat | Mensajes en español para cotización fallida, KYC pendiente, payout rechazado (reutilizar patrón swap/transfer). | Bajo |
 | — | Mensaje mercado Mento cerrado | Si Squid falla fin de semana tras `prefer`, aviso UX “mercado de pesos cerrado” (complemento al fix Uniswap). | Bajo |
 
-**Bloqueado hasta API key:** quote real, payout real, webhooks firmados, KYC embebido, go-live BRE-B.
+**Bloqueado hasta enablement COP:** Transfer/Liquidation Address real, webhooks firmados, KYC embebido, go-live BRE-B.
 
 **Criterio de éxito Fase 1**
 
@@ -195,9 +207,11 @@ Tareas que no requieren credenciales de Abroad y desbloquean el MVP cuando llegu
 
 | Vertical | Proveedor | Cuándo abordar |
 | --- | --- | --- |
+| Pagar QR de comercio | COP By (parseo) + Bridge payout a llave Bre-B | Tras Fase 1 live; no es API nativa de Bridge |
 | Recargas telefónicas | Por definir (Bemovil, Reloadly, etc.) | Cuando exista API y Fase 1 &gt; 15% adopción |
 | Gift cards (Netflix, etc.) | Por definir | Tras elegir catálogo CO |
 | Vouchers (Rappi, Uber, Didi) | Por definir | Si hay partner o margen claro |
+| Tarjeta Visa | Bridge Cards | No desde MiniPay: Celo no está en cards noncustodial |
 
 **Regla:** no abrir una nueva vertical hasta que la anterior supere ~15% de usuarios activos usándola.
 
@@ -211,6 +225,7 @@ Tareas que no requieren credenciales de Abroad y desbloquean el MVP cuando llegu
 | **Multi-approve / Permit2 onchain** | &gt; 30% abandono en paso "Activar" en producción |
 | **Cashback onchain** | Auditoría, grant (Talent) o requisito regulatorio |
 | **4 verticales de pago en paralelo** | Descartado — una vertical a la vez |
+| **Abroad Finance** | Descartado — sin liquidez COP, no hay payout |
 
 ---
 
@@ -218,14 +233,15 @@ Tareas que no requieren credenciales de Abroad y desbloquean el MVP cuando llegu
 
 | Prioridad | Tarea | Esfuerzo | Impacto tracción |
 | --- | --- | --- | --- |
-| 1 | Contactar Abroad → sandbox + API key | Ops | Crítico |
+| 1 | Contactar Bridge → enablement COP + sandbox | Ops | Crítico |
 | 2 | Spec + schema BRE-B (1.2a, 1.3a) | Bajo–Medio | Alto |
-| 3 | Tab Gastar + UI shell con mock (1.4a) | Medio | Alto |
-| 4 | Cliente Abroad + endpoints stub (1.3b–c) | Medio | Alto |
+| 3 | Tab Gastar + UI shell con mock y KYC (1.4a) | Medio | Alto |
+| 4 | Cliente Bridge + endpoints stub (1.3b–c) | Medio | Alto |
 | 5 | Medir métricas Fase 0 en producción | Bajo | Alto |
-| 6 | MVP BRE-B end-to-end (con API key) | Alto | Muy alto |
-| 7 | Referidos offchain (Fase 2) | Medio | Medio |
-| 8 | Recargas telefónicas | — | Bloqueado (sin proveedor) |
+| 6 | MVP BRE-B end-to-end (con enablement COP) | Alto | Muy alto |
+| 7 | Portal partner Clerk (1.7) | Medio–Alto | Alto |
+| 8 | Referidos offchain (Fase 2) | Medio | Medio |
+| 9 | Recargas telefónicas | — | Bloqueado (sin proveedor) |
 
 ---
 
@@ -242,7 +258,7 @@ Llega (MiniPay / comunidad)
     │       │           │
     ▼       ▼           ▼
  COPm     Transfer    BRE-B
-(Squid)   o BRE-B    (Abroad)
+(Squid)   o BRE-B    (Bridge)
     │       │           │
     └───────┴───────────┘
               │
@@ -260,8 +276,13 @@ Llega (MiniPay / comunidad)
 | Decisión | Elección |
 | --- | --- |
 | Usuario principal | MiniPay CO que recibe USD y quiere gastar en COP |
-| Revenue | Solo tracción por ahora; fee Squid existente |
-| Primera vertical de gasto | BRE-B vía Abroad (no recargas — sin proveedor) |
+| Revenue | COP By 1% onchain + 0,5% developer_fee Bridge; Squid 25 bps extra si hay swap COPm |
+| Cotización | Tasa efectiva cacheada 4–6 h; mínimo **4000 COP y 2 USDC** |
+| Primera vertical de gasto | BRE-B vía Bridge (USDC en Celo → COP). Abroad descartado por liquidez |
+| Asset de payout | USDC o COPm en Celo. COPm se convierte a USDC onchain; Bridge no lista COPm |
+| KYC | Hosted Bridge (Persona + endorsement `cop`), igual para miniapp y partners |
+| Superficie | **Fase 1:** servicio backend + miniapp **+** portal partner (Clerk orgs, keys, reporting) |
+| QR comercio | Capa UX después del rail live; no es MVP ni API nativa de Bridge |
 | Cashback | Offchain primero; onchain solo si se exige |
 | Distribución | MiniPay + comunidades Colombia + boca a boca |
 
@@ -270,7 +291,7 @@ Llega (MiniPay / comunidad)
 ## Próximos pasos inmediatos
 
 1. ~~Ejecutar **Fase 0**~~ ✅ Completada y en producción.
-2. **Seguir contacto Abroad** para API keys y sandbox (1.1).
-3. **En paralelo (sin API key):** spec compliance, schema DB, tab Gastar con mock, stubs de API.
-4. **Con API key:** conectar quote → payout → webhooks y cerrar MVP BRE-B (1.3).
+2. **Contactar Bridge** (`sales@bridge.xyz`) para enablement COP y sandbox (1.1).
+3. **En paralelo (sin enablement):** spec compliance, schema DB, tab Gastar con mock, cliente Bridge stub.
+4. **Con acceso COP:** conectar Transfer o Liquidation Address + webhooks y cerrar MVP BRE-B (1.3).
 5. **Medir** completación de compra y retorno 7d post-Fase 0.
