@@ -1,0 +1,26 @@
+---
+title: "COP By Integrations"
+description: "Non-custodial API for Celo swaps and BRE-B COP payouts. Sign from the user wallet, then confirm onchain."
+keywords: ["COP By", "BRE-B", "Bridge", "integrations", "Celo"]
+---
+
+COP By does not custody funds. Your backend prepares a quote or payout, the user signs from MiniPay or another wallet, and you confirm the transaction hash.
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run the docs playground against a local mock and call quote.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Send a Bearer integration key. Never expose `BRIDGE_API_KEY`.
+  </Card>
+  <Card title="BRE-B" icon="building-columns" href="/quickstart">
+    Quote COP, complete Bridge KYC, verify a Bre-B key, then pay out.
+  </Card>
+  <Card title="Swaps" icon="arrow-right-arrow-left" href="/quickstart">
+    Prepare and confirm COPm / USDT / USDC / USDm swaps on Celo.
+  </Card>
+</Columns>
+
+<Note>
+  Slice 1 of BRE-B runs with `BRIDGE_MOCK=true`. KYC auto-approves after OTP. Live Bridge verify lands in a later slice.
+</Note>

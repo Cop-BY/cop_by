@@ -1,0 +1,15 @@
+{
+  "name": "docs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "docs": "mint dev --port 3333 --no-open",
+    "validate": "mint validate"
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  },
+  "devDependencies": {
+    "mint": "^4.2.0"
+  }
+}

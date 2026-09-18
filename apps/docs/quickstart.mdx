@@ -1,0 +1,50 @@
+---
+title: "Quickstart"
+description: "Preview these docs and hit the mock BRE-B quote endpoint."
+keywords: ["mint", "playground", "BRIDGE_MOCK"]
+---
+
+The CLI needs [Node.js](https://nodejs.org) 20 LTS or newer. The web app can stay on Node 18.
+
+<Steps>
+  <Step title="Start the web API">
+    From the repo root, with `BRIDGE_MOCK=true` in `apps/web/.env.local`:
+
+    ```bash
+    pnpm --filter web dev
+    ```
+
+    The Integrations API listens on `http://localhost:3000`.
+  </Step>
+  <Step title="Start these docs">
+    ```bash
+    pnpm --filter docs docs
+    ```
+
+    Open [http://localhost:3333](http://localhost:3333). Mint uses port 3333 so it does not collide with Next.
+  </Step>
+  <Step title="Try a quote">
+    Open [Get a BRE-B quote](/api-reference). Use server **Local**, paste your `copby_live_pk_…` key, and send:
+
+    ```txt
+    destinationCop=10000
+    fromToken=USDC
+    ```
+
+    A successful mock response includes `display` like `1 USD = 3902 COP` and `cached: false` on the first call.
+  </Step>
+  <Step title="Walk the payout path">
+    1. `POST /kyc/otp/send` with a real-looking email and a checksummed `userAddress`.
+    2. `POST /kyc/otp/verify` with the code your test harness generated, or the one you injected locally. In mock mode the customer becomes `approved` after a valid OTP.
+    3. `GET /quote` then `POST /payouts` with `breBKey` and `accountOwnerName`. Use a name that does **not** contain `mismatch`.
+    4. `POST /payouts/{payoutId}/confirm` with a unique `0x` + 64 hex `txHash`.
+  </Step>
+</Steps>
+
+<Tip>
+  In mock mode, an account owner name containing `mismatch` or a Bre-B key starting with `0000` returns `409 destination_mismatch` and does not create a payout.
+</Tip>
+
+<Info>
+  Fees: COP By 1% onchain to `COPBY_FEE_WALLET`, Bridge developer fee 0.5%. Minimum 4000 COP **and** 2 USDC to Bridge.
+</Info>

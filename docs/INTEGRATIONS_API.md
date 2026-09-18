@@ -1,5 +1,7 @@
 # COP By Integrations API
 
+Interactive reference and playground: run `pnpm docs` (Mintlify on port 3333) against `pnpm --filter web dev`. Spec: [`apps/docs/openapi.yaml`](../apps/docs/openapi.yaml).
+
 This API lets approved partners prepare COP By swaps for their own UI.
 COP By does not custody funds and does not deposit into partner contracts. The user
 signs the returned transaction from their own wallet and receives the output token

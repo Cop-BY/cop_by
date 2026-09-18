@@ -1,0 +1,32 @@
+---
+title: "Authentication"
+description: "How partners authenticate to the Integrations API."
+keywords: ["API key", "Bearer", "copby_live_pk"]
+---
+
+Every Integrations route requires an API key that COP By issues to your integration.
+
+```http
+Authorization: Bearer copby_live_pk_<public_id>.<secret>
+```
+
+<Warning>
+  Keep the key on your server. The MiniPay WebView and this playground should talk to your backend, or to a local Next app, never to `BRIDGE_API_KEY`.
+</Warning>
+
+## Playground
+
+1. Open any endpoint in **API reference**.
+2. Paste the key in the **Authorization** field. You can omit the `Bearer ` prefix; Mintlify adds it.
+3. Pick the **Local** server (`http://localhost:3000`) while `pnpm --filter web dev` is running.
+
+## Isolation
+
+The key maps to one `integration_id`. List and confirm routes ignore any other integration id in the query or body. A payout created by partner A is not visible to partner B.
+
+## Errors
+
+| Status | `errorCode` | Meaning |
+| --- | --- | --- |
+| 401 | — | Missing or invalid key |
+| 403 | — | Origin not allowlisted for that key |

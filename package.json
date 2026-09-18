@@ -9,6 +9,7 @@
     "lint": "turbo lint",
     "clean": "turbo clean",
     "type-check": "turbo type-check",
+    "docs": "pnpm --filter docs docs",
     "contracts:compile": "turbo run compile --filter=hardhat",
     "contracts:test": "turbo run test --filter=hardhat",
     "contracts:deploy": "turbo run deploy --filter=hardhat",

@@ -1,0 +1,693 @@
+openapi: 3.1.0
+info:
+  title: COP By Integrations API
+  version: 0.1.0
+  description: |
+    Non-custodial Celo API for partners. Prepare swaps and BRE-B COP payouts;
+    the user signs from their wallet. Confirm with the transaction hash.
+servers:
+  - url: http://localhost:3000
+    description: Local Next.js app
+  - url: https://app.copby.co
+    description: Production (replace if your origin differs)
+tags:
+  - name: BRE-B
+    description: Quote, KYC, and COP payouts via Bridge Bre-B
+  - name: Swaps
+    description: Prepare and confirm onchain COPm swaps
+  - name: Webhooks
+    description: Bridge callbacks. Not authenticated with a partner key.
+security:
+  - bearerAuth: []
+paths:
+  /api/integrations/breb/quote:
+    get:
+      tags: [BRE-B]
+      operationId: getBrebQuote
+      summary: Get a BRE-B quote
+      description: |
+        Cached USD→COP rate (default 6 hours) plus the fee stack.
+        Omit `destinationCop` to receive only the effective rate.
+        Amounts below 4000 COP or 2 USDC to Bridge return `below_minimum`.
+      parameters:
+        - $ref: "#/components/parameters/destinationCop"
+        - $ref: "#/components/parameters/fromToken"
+        - $ref: "#/components/parameters/userAddressQuery"
+      responses:
+        "200":
+          description: Quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrebQuote"
+              example:
+                quoteId: q_11111111-1111-1111-1111-111111111111
+                fromToken: USDC
+                destinationCop: "10000"
+                effectiveUsdCop: "3902"
+                display: "1 USD = 3902 COP"
+                sourceAmount: "2563065"
+                sourceAmountUsd: "2.563065"
+                netUsdcToBridge: "2.537688"
+                sellRate: "4000"
+                swapProvider: none
+                cached: false
+                expiresAt: "2026-09-18T22:00:00.000Z"
+                fees:
+                  - code: bridge_fx
+                    amountUsd: "0.03"
+                    to: null
+                    status: quoted
+                  - code: bridge
+                    amountUsd: "0.01"
+                    to: null
+                    status: quoted
+                  - code: copby
+                    amountUsd: "0.03"
+                    to: "0x1111111111111111111111111111111111111111"
+                    status: quoted
+        "400":
+          $ref: "#/components/responses/BrebError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/integrations/breb/kyc:
+    get:
+      tags: [BRE-B]
+      operationId: getBrebKyc
+      summary: Get KYC status
+      parameters:
+        - $ref: "#/components/parameters/userAddressRequired"
+      responses:
+        "200":
+          description: KYC status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [BRE-B]
+      operationId: startBrebKyc
+      summary: Start KYC
+      description: Returns `needs_otp` until the email is verified. Does not reveal whether the email already has an approved customer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartKycRequest"
+            example:
+              userAddress: "0x2222222222222222222222222222222222222222"
+              fullName: Ana Pérez
+              email: ana@example.com
+              redirectUri: https://partner.app/kyc-done
+      responses:
+        "200":
+          description: Next KYC step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycStatus"
+        "400":
+          $ref: "#/components/responses/BrebError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/integrations/breb/kyc/otp/send:
+    post:
+      tags: [BRE-B]
+      operationId: sendBrebKycOtp
+      summary: Send KYC email OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userAddress, email]
+              properties:
+                userAddress:
+                  $ref: "#/components/schemas/Address"
+                email:
+                  type: string
+                  format: email
+            example:
+              userAddress: "0x2222222222222222222222222222222222222222"
+              email: ana@example.com
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: sent
+                  expiresAt:
+                    type: string
+                    format: date-time
+        "400":
+          $ref: "#/components/responses/BrebError"
+        "429":
+          $ref: "#/components/responses/BrebError"
+
+  /api/integrations/breb/kyc/otp/verify:
+    post:
+      tags: [BRE-B]
+      operationId: verifyBrebKycOtp
+      summary: Verify KYC email OTP
+      description: After a valid code, mock mode auto-approves KYC. Live mode returns Persona `kycLink` and `tosLink` when the email is new.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userAddress, email, code]
+              properties:
+                userAddress:
+                  $ref: "#/components/schemas/Address"
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                  example: "123456"
+                fullName:
+                  type: string
+                redirectUri:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: KYC status after verify
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KycStatus"
+        "400":
+          $ref: "#/components/responses/BrebError"
+
+  /api/integrations/breb/payouts:
+    get:
+      tags: [BRE-B]
+      operationId: listBrebPayouts
+      summary: List payouts for this integration
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive ISO timestamp filter on `createdAt`
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Payouts owned by the API key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integrationId:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Payout"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [BRE-B]
+      operationId: createBrebPayout
+      summary: Create a BRE-B payout
+      description: |
+        Requires an approved customer. Creates a Bre-B external account and
+        verifies name + key before returning the deposit transaction.
+        `409 destination_mismatch` if verify does not match. `409 needs_kyc` if KYC is incomplete.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+          description: Replays the same payout when reused by this integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePayoutRequest"
+            example:
+              userAddress: "0x2222222222222222222222222222222222222222"
+              fromToken: USDC
+              destinationCop: "10000"
+              breBKey: "31234567890"
+              accountOwnerName: Ana Pérez
+      responses:
+        "200":
+          description: Prepared payout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payout"
+        "400":
+          $ref: "#/components/responses/BrebError"
+        "409":
+          $ref: "#/components/responses/BrebError"
+
+  /api/integrations/breb/payouts/{payoutId}:
+    get:
+      tags: [BRE-B]
+      operationId: getBrebPayout
+      summary: Get a payout
+      parameters:
+        - $ref: "#/components/parameters/payoutId"
+      responses:
+        "200":
+          description: Payout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payout"
+        "404":
+          $ref: "#/components/responses/BrebError"
+
+  /api/integrations/breb/payouts/{payoutId}/confirm:
+    post:
+      tags: [BRE-B]
+      operationId: confirmBrebPayout
+      summary: Confirm a payout deposit
+      description: |
+        `txHash` is unique across payouts. A second payout cannot reuse it (`tx_hash_reused`).
+        Mock mode skips the onchain receipt check.
+      parameters:
+        - $ref: "#/components/parameters/payoutId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [txHash]
+              properties:
+                txHash:
+                  $ref: "#/components/schemas/TxHash"
+            example:
+              txHash: "0x1111111111111111111111111111111111111111111111111111111111111111"
+      responses:
+        "200":
+          description: Updated payout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payout"
+        "409":
+          $ref: "#/components/responses/BrebError"
+
+  /api/breb/webhook:
+    post:
+      tags: [Webhooks]
+      operationId: bridgeWebhook
+      summary: Bridge webhook
+      security: []
+      description: Bridge-only. Dedupes by `event_id`. `funds_received` updates the payout even if confirm never arrived.
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          schema:
+            type: string
+          description: HMAC-SHA256 hex of the raw body. Skipped when `BRIDGE_MOCK=true` and no secret is set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_id:
+                  type: string
+                event_type:
+                  type: string
+                  example: transfer.updated
+                event_object_id:
+                  type: string
+                event_object_status:
+                  type: string
+                  example: funds_received
+            example:
+              event_id: wh_1
+              event_type: transfer.updated
+              event_object_id: tr_mock_0001
+              event_object_status: funds_received
+      responses:
+        "200":
+          description: Accepted
+        "401":
+          description: Invalid signature
+
+  /api/integrations/swaps/prepare:
+    post:
+      tags: [Swaps]
+      operationId: prepareSwap
+      summary: Prepare a swap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userAddress, fromAmount]
+              properties:
+                userAddress:
+                  $ref: "#/components/schemas/Address"
+                fromToken:
+                  type: string
+                  enum: [USDT, USDC, USDm, COPm]
+                toToken:
+                  type: string
+                  enum: [COPm, USDT]
+                fromAmount:
+                  type: string
+                  description: Atomic units (USDT/USDC 6 decimals, COPm/USDm 18)
+                  example: "1000000"
+                slippage:
+                  type: number
+                  example: 0.3
+            example:
+              userAddress: "0x2222222222222222222222222222222222222222"
+              fromToken: USDT
+              toToken: COPm
+              fromAmount: "1000000"
+              slippage: 0.3
+      responses:
+        "200":
+          description: Prepared swap
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/BrebError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/integrations/swaps/{intentId}/confirm:
+    post:
+      tags: [Swaps]
+      operationId: confirmSwap
+      summary: Confirm a swap
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [txHash]
+              properties:
+                txHash:
+                  $ref: "#/components/schemas/TxHash"
+      responses:
+        "200":
+          description: Confirmed swap
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/BrebError"
+
+  /api/integrations/swaps:
+    get:
+      tags: [Swaps]
+      operationId: listSwaps
+      summary: List confirmed swaps
+      parameters:
+        - name: integration_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Must match the API key integration
+        - name: since
+          in: query
+          schema:
+            type: integer
+          description: Unix seconds, inclusive on `updatedAt`. Defaults to 0.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+      responses:
+        "200":
+          description: Confirmed swaps
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: integration_id does not match the key
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Integration API key. Send as `Bearer copby_live_pk_…`.
+  parameters:
+    destinationCop:
+      name: destinationCop
+      in: query
+      schema:
+        type: string
+        example: "10000"
+      description: Integer COP to deliver. Optional; omitted returns rate only.
+    fromToken:
+      name: fromToken
+      in: query
+      schema:
+        type: string
+        enum: [USDC, COPm]
+        default: USDC
+    userAddressQuery:
+      name: userAddress
+      in: query
+      schema:
+        $ref: "#/components/schemas/Address"
+      description: Used when quoting COPm so the swap route can be built
+    userAddressRequired:
+      name: userAddress
+      in: query
+      required: true
+      schema:
+        $ref: "#/components/schemas/Address"
+    payoutId:
+      name: payoutId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid integration API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    BrebError:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+  schemas:
+    Address:
+      type: string
+      pattern: "^0x[a-fA-F0-9]{40}$"
+      example: "0x2222222222222222222222222222222222222222"
+    TxHash:
+      type: string
+      pattern: "^0x[a-fA-F0-9]{64}$"
+    ErrorBody:
+      type: object
+      properties:
+        error:
+          type: string
+        errorCode:
+          type: string
+          enum:
+            - below_minimum
+            - needs_kyc
+            - destination_mismatch
+            - requote
+            - tx_hash_reused
+            - otp_invalid
+            - mercado_cerrado
+            - invalid_webhook_signature
+    FeeLeg:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [swap, bridge_fx, bridge, copby]
+        amountUsd:
+          type: string
+        to:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [quoted, verified, pending]
+    BrebQuote:
+      type: object
+      properties:
+        quoteId:
+          type: string
+        fromToken:
+          type: string
+          enum: [USDC, COPm]
+        destinationCop:
+          type: [string, "null"]
+        effectiveUsdCop:
+          type: string
+        display:
+          type: string
+          example: "1 USD = 3902 COP"
+        sourceAmount:
+          type: [string, "null"]
+          description: Atomic units of fromToken
+        sourceAmountUsd:
+          type: [string, "null"]
+        netUsdcToBridge:
+          type: [string, "null"]
+        sellRate:
+          type: string
+        swapProvider:
+          type: [string, "null"]
+          enum: [none, squid, uniswap_v3, mock, null]
+        cached:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+        fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeeLeg"
+    KycStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [needs_otp, needs_kyc, approved]
+        kycLink:
+          type: string
+        tosLink:
+          type: string
+    StartKycRequest:
+      type: object
+      required: [userAddress, fullName, email]
+      properties:
+        userAddress:
+          $ref: "#/components/schemas/Address"
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        redirectUri:
+          type: string
+          format: uri
+    PreparedTx:
+      type: object
+      properties:
+        approvalTarget:
+          type: [string, "null"]
+        to:
+          type: string
+        data:
+          type: string
+        value:
+          type: string
+          example: "0"
+    Payout:
+      type: object
+      properties:
+        payoutId:
+          type: string
+        status:
+          type: string
+        fromToken:
+          type: string
+        sourceAmount:
+          type: string
+        fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeeLeg"
+        quote:
+          type: object
+          properties:
+            display:
+              type: [string, "null"]
+            effectiveUsdCop:
+              type: [string, "null"]
+        deposit:
+          type: object
+          properties:
+            chain:
+              type: string
+            currency:
+              type: string
+            address:
+              type: string
+            amount:
+              type: string
+        transaction:
+          $ref: "#/components/schemas/PreparedTx"
+        feeTransaction:
+          $ref: "#/components/schemas/PreparedTx"
+        destinationPreview:
+          type: object
+          properties:
+            accountOwnerName:
+              type: string
+            bankName:
+              type: [string, "null"]
+            documentLast4:
+              type: [string, "null"]
+    CreatePayoutRequest:
+      type: object
+      required: [userAddress, destinationCop, breBKey, accountOwnerName]
+      properties:
+        userAddress:
+          $ref: "#/components/schemas/Address"
+        fromToken:
+          type: string
+          enum: [USDC, COPm]
+          default: USDC
+        destinationCop:
+          type: string
+          example: "10000"
+        breBKey:
+          type: string
+        accountOwnerName:
+          type: string
+        quoteId:
+          type: string

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "palm",
+  "name": "COP By Integrations",
+  "colors": {
+    "primary": "#1B4D3E",
+    "light": "#3D8B6E",
+    "dark": "#0F2E25"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": ["index", "quickstart", "authentication"]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "icon": "square-terminal",
+        "openapi": "openapi.yaml"
+      }
+    ]
+  },
+  "api": {
+    "openapi": "openapi.yaml",
+    "playground": {
+      "display": "interactive",
+      "proxy": true
+    },
+    "params": {
+      "expanded": "all"
+    },
+    "url": "full",
+    "examples": {
+      "languages": ["bash", "javascript", "python"],
+      "defaults": "required",
+      "prefill": true,
+      "autogenerate": true
+    }
+  }
+}
