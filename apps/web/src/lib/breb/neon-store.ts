@@ -361,11 +361,13 @@ export function createNeonBrebStore(): BrebStore {
     async listPayouts(integrationId, options) {
       const since = options?.since ?? new Date(0).toISOString();
       const limit = Math.min(options?.limit ?? 100, 500);
+      const userAddress = options?.userAddress?.toLowerCase() ?? null;
       const rows = (await getSql()`
         SELECT *
         FROM breb_payouts
         WHERE integration_id = ${integrationId}
           AND created_at >= ${since}
+          AND (${userAddress}::text IS NULL OR user_address = ${userAddress})
         ORDER BY created_at ASC
         LIMIT ${limit}
       `) as PayoutDbRow[];

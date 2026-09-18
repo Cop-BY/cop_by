@@ -109,11 +109,13 @@ export function createMemoryBrebStore(): BrebStore {
     async listPayouts(integrationId, options) {
       const since = options?.since ? Date.parse(options.since) : 0;
       const limit = options?.limit ?? 100;
+      const userAddress = options?.userAddress?.toLowerCase();
       return [...payouts.values()]
         .filter(
           (payout) =>
             payout.integrationId === integrationId &&
-            Date.parse(payout.createdAt) >= since
+            Date.parse(payout.createdAt) >= since &&
+            (!userAddress || payout.userAddress === userAddress)
         )
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .slice(0, limit)

@@ -11,8 +11,14 @@ Authorization: Bearer copby_live_pk_<public_id>.<secret>
 ```
 
 <Warning>
-  Keep the key on your server. The MiniPay WebView and this playground should talk to your backend, or to a local Next app, never to `BRIDGE_API_KEY`.
+  Keep the key on your server. Partners must not put it in MiniPay. Never expose `BRIDGE_API_KEY`.
 </Warning>
+
+## MiniPay first-party
+
+The COP By miniapp calls `/api/breb/*` (same bodies as `/api/integrations/breb/*`) with **no Bearer key**. Those aliases pin `integration_id` to `copby` and require `userAddress` on list, get, and confirm so one wallet cannot read another.
+
+Use `/api/integrations/breb/*` from a partner backend. Use `/api/breb/*` from the miniapp.
 
 ## Playground
 

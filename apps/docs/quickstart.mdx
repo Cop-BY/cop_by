@@ -34,15 +34,15 @@ The CLI needs [Node.js](https://nodejs.org) 20 LTS or newer. The web app can sta
     A successful mock response includes `display` like `1 USD = 3902 COP` and `cached: false` on the first call.
   </Step>
   <Step title="Walk the payout path">
-    1. `POST /kyc/otp/send` with a real-looking email and a checksummed `userAddress`.
-    2. `POST /kyc/otp/verify` with the code your test harness generated, or the one you injected locally. In mock mode the customer becomes `approved` after a valid OTP.
+    1. `POST /kyc/otp/send` with a real-looking email and a checksummed `userAddress`. In mock mode the response includes `debugCode` (`123456` by default, or `BREB_MOCK_OTP`).
+    2. `POST /kyc/otp/verify` with that code. Mock mode auto-approves KYC after a valid OTP.
     3. `GET /quote` then `POST /payouts` with `breBKey` and `accountOwnerName`. Use a name that does **not** contain `mismatch`.
     4. `POST /payouts/{payoutId}/confirm` with a unique `0x` + 64 hex `txHash`.
   </Step>
 </Steps>
 
 <Tip>
-  In mock mode, an account owner name containing `mismatch` or a Bre-B key starting with `0000` returns `409 destination_mismatch` and does not create a payout.
+  In mock mode, an account owner name containing `mismatch` or a Bre-B key starting with `0000` returns `409 destination_mismatch` and does not create a payout. The miniapp can skip the Bearer key and call `/api/breb/*` instead of `/api/integrations/breb/*`.
 </Tip>
 
 <Info>

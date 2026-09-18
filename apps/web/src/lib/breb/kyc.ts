@@ -1,7 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
 import { isAddress } from "viem";
 
-import { getBrebConfig } from "./config";
+import { getBrebConfig, getMockOtpCode, isBridgeMock } from "./config";
 import { BrebError } from "./errors";
 import { createId } from "./ids";
 import type { BrebStore } from "./store";
@@ -111,7 +111,9 @@ export async function sendKycOtp(
     await deps.store.updateOtp(active);
   }
 
-  const code = deps.generateOtp?.() ?? String(randomInt(100000, 1000000));
+  const code =
+    deps.generateOtp?.() ??
+    (config.mock ? getMockOtpCode() : String(randomInt(100000, 1000000)));
   const expiresAt = new Date(
     now.getTime() + config.otpTtlMinutes * 60 * 1000
   ).toISOString();
@@ -126,7 +128,11 @@ export async function sendKycOtp(
     userAddress: address,
   });
   await deps.sendOtp?.({ code, email });
-  return { expiresAt, status: "sent" as const };
+  return {
+    expiresAt,
+    status: "sent" as const,
+    ...(isBridgeMock() ? { debugCode: code } : {}),
+  };
 }
 
 export async function verifyKycOtp(

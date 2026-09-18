@@ -203,6 +203,52 @@ test("KYC requires OTP before approval", async () => {
   assert.equal(verified.status, "approved");
 });
 
+test("mock OTP returns debugCode 123456", async () => {
+  const { ctx } = createHarness();
+  delete ctx.generateOtp;
+  const sent = await sendKycOtp(ctx, {
+    email: "ana@example.com",
+    userAddress: USER_A,
+  });
+  assert.equal(sent.status, "sent");
+  assert.equal(sent.debugCode, "123456");
+  const verified = await verifyKycOtp(ctx, {
+    code: "123456",
+    email: "ana@example.com",
+    fullName: "Ana Perez",
+    userAddress: USER_A,
+  });
+  assert.equal(verified.status, "approved");
+});
+
+test("first-party list hides other wallets", async () => {
+  const { ctx } = createHarness();
+  await approveWallet(ctx, USER_A, "ana@example.com");
+  await approveWallet(ctx, USER_B, "beto@example.com");
+  const payout = await createBrebPayout(ctx, {
+    accountOwnerName: "Ana Perez",
+    breBKey: "31234567890",
+    destinationCop: "10000",
+    fromToken: "USDC",
+    integrationId: "copby",
+    userAddress: USER_A,
+  });
+  await createBrebPayout(ctx, {
+    accountOwnerName: "Beto Ruiz",
+    breBKey: "39876543210",
+    destinationCop: "12000",
+    fromToken: "USDC",
+    integrationId: "copby",
+    userAddress: USER_B,
+  });
+  const listed = await listBrebPayouts(ctx.store, {
+    integrationId: "copby",
+    userAddress: USER_A,
+  });
+  assert.equal(listed.items.length, 1);
+  assert.equal(listed.items[0]?.payoutId, payout.payoutId);
+});
+
 test("destination mismatch does not create a payout", async () => {
   const { ctx } = createHarness();
   await approveWallet(ctx, USER_A, "ana@example.com");

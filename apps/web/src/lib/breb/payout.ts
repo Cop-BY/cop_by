@@ -256,10 +256,15 @@ export async function createBrebPayout(
 
 export async function getBrebPayout(
   store: BrebStore,
-  input: { integrationId: string; payoutId: string }
+  input: { integrationId: string; payoutId: string; userAddress?: string }
 ) {
   const payout = await store.getPayout(input.payoutId);
-  if (!payout || payout.integrationId !== input.integrationId) {
+  if (
+    !payout ||
+    payout.integrationId !== input.integrationId ||
+    (input.userAddress &&
+      payout.userAddress !== input.userAddress.toLowerCase())
+  ) {
     throw new BrebError("payout_not_found", "Payout not found", 404);
   }
   return serializePayout(payout);
@@ -267,11 +272,17 @@ export async function getBrebPayout(
 
 export async function listBrebPayouts(
   store: BrebStore,
-  input: { integrationId: string; limit?: number; since?: string }
+  input: {
+    integrationId: string;
+    limit?: number;
+    since?: string;
+    userAddress?: string;
+  }
 ) {
   const items = await store.listPayouts(input.integrationId, {
     limit: input.limit,
     since: input.since,
+    userAddress: input.userAddress,
   });
   return {
     integrationId: input.integrationId,

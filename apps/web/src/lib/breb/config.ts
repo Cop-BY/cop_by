@@ -19,6 +19,15 @@ export const CELO_UNISWAP_V3_QUOTER_V2 =
   "0x82825d0554fA07f7FC52Ab63c961F330fdEFa8E8" as Address;
 export const MOCK_FEE_WALLET =
   "0x1111111111111111111111111111111111111111" as Address;
+export const COPBY_INTEGRATION_ID = "copby";
+export const BREB_MOCK_OTP_DEFAULT = "123456";
+
+export function getMockOtpCode() {
+  const configured = process.env.BREB_MOCK_OTP?.trim();
+  return configured && /^\d{6}$/.test(configured)
+    ? configured
+    : BREB_MOCK_OTP_DEFAULT;
+}
 
 function envNumber(name: string, fallback: number) {
   const raw = process.env[name];

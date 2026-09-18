@@ -96,13 +96,19 @@ export async function confirmBrebPayout(
     integrationId: string;
     payoutId: string;
     txHash?: string;
+    userAddress?: string;
   }
 ) {
   if (!isTxHash(input.txHash)) {
     throw new BrebError("invalid_tx_hash", "Invalid tx hash", 400);
   }
   const payout = await store.getPayout(input.payoutId);
-  if (!payout || payout.integrationId !== input.integrationId) {
+  if (
+    !payout ||
+    payout.integrationId !== input.integrationId ||
+    (input.userAddress &&
+      payout.userAddress !== input.userAddress.toLowerCase())
+  ) {
     throw new BrebError("payout_not_found", "Payout not found", 404);
   }
   if (payout.sourceTxHash?.toLowerCase() === input.txHash.toLowerCase()) {

@@ -150,6 +150,10 @@ paths:
                   expiresAt:
                     type: string
                     format: date-time
+                  debugCode:
+                    type: string
+                    description: Present only when BRIDGE_MOCK is on. Default 123456.
+                    example: "123456"
         "400":
           $ref: "#/components/responses/BrebError"
         "429":

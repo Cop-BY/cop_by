@@ -29,7 +29,7 @@ export type BrebStore = {
   linkWallet(wallet: WalletRow): Promise<void>;
   listPayouts(
     integrationId: string,
-    options?: { limit?: number; since?: string }
+    options?: { limit?: number; since?: string; userAddress?: string }
   ): Promise<PayoutRow[]>;
   logRequest(row: RequestLogRow): Promise<void>;
   saveExternalAccount(row: ExternalAccountRow): Promise<void>;

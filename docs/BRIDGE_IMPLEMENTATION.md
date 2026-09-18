@@ -1,7 +1,7 @@
 # Plan de implementación — BRE-B con Bridge
 
 > **Objetivo:** un servicio de backend de COP By que convierte USDC o COPm en Celo a COP fiat vía Bridge (Bre-B). Lo consume la miniapp y otras apps.  
-> **Estado:** plan técnico. No hay código Bridge en el repo.  
+> **Estado:** Slice 1 mock + aliases MiniPay `/api/breb/*` listos. Slice 2 = tab Gastar.
 > **Fecha:** septiembre 2026  
 > **Docs:** [COP integration](https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide) · [Transfers](https://apidocs.bridge.xyz/api-reference/transfers/create-a-transfer) · [Fixed outputs](https://apidocs.bridge.xyz/get-started/guides/move-money/fixed_outputs_integration_guide) · [Integrations API](./INTEGRATIONS_API.md)
 
@@ -66,7 +66,7 @@ Rutas canónicas:
 POST /api/breb/webhook          ← solo Bridge; no usa API key de partner
 ```
 
-La miniapp puede llamar las mismas rutas (key server-side) o aliases `/api/breb/*` que delegan al mismo código.
+La miniapp llama aliases `/api/breb/*` (sin Bearer; `integration_id=copby`; `userAddress` obligatorio en list/get/confirm). Partners usan `/api/integrations/breb/*` con key. Ambas delegan a `lib/breb/`. En mock, `POST .../kyc/otp/send` devuelve `debugCode` (`123456` o `BREB_MOCK_OTP`).
 
 Auth **sí** está pensado: reutilizar `requireIntegrationApiKey` y `integration_id` en cada payout. El producto final de plataforma (keys por dashboard/API, soporte interno, y que el integrador consulte sus txs/volumen/fees) está en §16.
 
@@ -436,7 +436,8 @@ Si `fromToken=USDC`, `transaction` es un multicall: depósito Bridge + fee 1% a 
 - `lib/breb/` + `bridge-client` mock.
 - `GET quote` con cache 4–6 h y `display: "1 USD = 3000 COP"`.
 - Quoter Uniswap V3 + cadena Squid → Uni.
-- Tablas Neon + API integrations (auth key).
+- Tablas Neon + API integrations (auth key) + aliases MiniPay `/api/breb/*` (`integration_id=copby`, sin Bearer).
+- OTP mock: `debugCode` / `123456` (`BREB_MOCK_OTP`).
 - Tests: cache hit no llama Bridge; miss sí; quote COPm usa fallback si Squid tira no-route.
 
 ### Slice 2 — Miniapp como cliente
