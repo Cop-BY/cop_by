@@ -1,3 +1,5 @@
+import type { BrebPayout } from "./breb-client";
+
 export type ActivityItem = {
   amount: string;
   createdAt: string;
@@ -7,7 +9,7 @@ export type ActivityItem = {
   status: string;
   swapType?: "buy" | "sell";
   txHash: string | null;
-  type: "swap" | "transfer";
+  type: "swap" | "transfer" | "breb";
   updatedAt: string;
 };
 
@@ -69,15 +71,35 @@ function mapTransfer(row: TransferRow): ActivityItem {
   };
 }
 
+function mapPayout(payout: BrebPayout): ActivityItem {
+  return {
+    amount: payout.destinationCop ?? "0",
+    createdAt: payout.createdAt ?? payout.updatedAt ?? new Date().toISOString(),
+    error: payout.error ?? null,
+    id: payout.payoutId,
+    recipientAddress: payout.accountOwnerName ?? null,
+    status: payout.status,
+    txHash: payout.sourceTxHash ?? null,
+    type: "breb",
+    updatedAt: payout.updatedAt ?? payout.createdAt ?? new Date().toISOString(),
+  };
+}
+
 export async function fetchUserActivity(userAddress: string, limit = 20) {
   const params = new URLSearchParams({
     limit: String(limit),
     userAddress,
   });
 
-  const [swapsRes, transfersRes] = await Promise.all([
+  const [swapsRes, transfersRes, payoutsRes] = await Promise.all([
     fetch(`/api/swaps?${params}`),
-    fetch(`/api/transfers?${new URLSearchParams({ limit: String(limit), senderAddress: userAddress })}`),
+    fetch(
+      `/api/transfers?${new URLSearchParams({
+        limit: String(limit),
+        senderAddress: userAddress,
+      })}`
+    ),
+    fetch(`/api/breb/payouts?${params}`),
   ]);
 
   if (!swapsRes.ok || !transfersRes.ok) {
@@ -87,17 +109,64 @@ export async function fetchUserActivity(userAddress: string, limit = 20) {
   const swaps = ((await swapsRes.json()) as { items?: SwapRow[] }).items ?? [];
   const transfers =
     ((await transfersRes.json()) as { items?: TransferRow[] }).items ?? [];
+  const payouts = payoutsRes.ok
+    ? ((await payoutsRes.json()) as { items?: BrebPayout[] }).items ?? []
+    : [];
 
-  return [...swaps.map(mapSwap), ...transfers.map(mapTransfer)].sort(
+  return [
+    ...swaps.map(mapSwap),
+    ...transfers.map(mapTransfer),
+    ...payouts.map(mapPayout),
+  ].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
 
+export function getActivityTitle(item: ActivityItem) {
+  if (item.type === "breb") return "Enviaste COP";
+  if (item.type === "swap") {
+    return item.swapType === "sell" ? "Vendiste pesos" : "Obtuviste pesos";
+  }
+  return "Enviaste pesos";
+}
+
+export function getActivityRecipientLabel(item: ActivityItem) {
+  if (item.type === "breb") return "A";
+  if (item.type === "swap") return item.swapType === "sell" ? "Desde" : "Destino";
+  return "A";
+}
+
+export function isActivityCredit(item: ActivityItem) {
+  return item.type === "swap" && item.swapType !== "sell";
+}
+
 export function getActivityStatusLabel(status: string, error: string | null) {
-  if (status === "failed" || error) return "Fallido";
-  if (["created", "quoting"].includes(status)) return "Pendiente";
-  if (["submitted", "processing", "buying"].includes(status)) return "Procesando";
-  if (["confirmed", "logged", "complete"].includes(status)) return "Completado";
+  if (status === "failed" || status === "refunded" || error) return "Fallido";
+  if (
+    ["created", "quoting", "awaiting_deposit", "awaiting_topup", "needs_kyc"].includes(
+      status
+    )
+  ) {
+    return "Pendiente";
+  }
+  if (
+    [
+      "submitted",
+      "processing",
+      "buying",
+      "deposit_verified",
+      "funds_received",
+    ].includes(status)
+  ) {
+    return "Procesando";
+  }
+  if (
+    ["confirmed", "logged", "complete", "completed", "completed_fees_mismatch"].includes(
+      status
+    )
+  ) {
+    return "Completado";
+  }
   return "Pendiente";
 }
 

@@ -1,7 +1,7 @@
 # Plan de implementación — BRE-B con Bridge
 
 > **Objetivo:** un servicio de backend de COP By que convierte USDC o COPm en Celo a COP fiat vía Bridge (Bre-B). Lo consume la miniapp y otras apps.  
-> **Estado:** Slice 1 mock + aliases MiniPay `/api/breb/*` listos. Slice 2 = tab Gastar.
+> **Estado:** Slice 1–2 listos (mock API + aliases MiniPay + tab Gastar). Siguiente: Slice 3 sandbox Bridge real.
 > **Fecha:** septiembre 2026  
 > **Docs:** [COP integration](https://apidocs.bridge.xyz/get-started/guides/move-money/cop_integration_guide) · [Transfers](https://apidocs.bridge.xyz/api-reference/transfers/create-a-transfer) · [Fixed outputs](https://apidocs.bridge.xyz/get-started/guides/move-money/fixed_outputs_integration_guide) · [Integrations API](./INTEGRATIONS_API.md)
 
@@ -442,8 +442,8 @@ Si `fromToken=USDC`, `transaction` es un multicall: depósito Bridge + fee 1% a 
 
 ### Slice 2 — Miniapp como cliente
 
-- Tab Gastar consume la API (USDC o COPm).
-- Flujo KYC = abrir link Bridge.
+- Tab Gastar consume `/api/breb/*` (USDC o COPm).
+- Flujo KYC = OTP + abrir link Bridge si hace falta (`/breb/kyc-done`).
 - `/activity` tipo `breb`.
 
 ### Slice 3 — Sandbox real + conciliación

@@ -38,6 +38,9 @@ export function serializePayout(payout: PayoutRow, extra?: {
   transaction?: PreparedTx | null;
 }) {
   return {
+    accountOwnerName: payout.accountOwnerName,
+    breBKeyLast4: payout.breBKeyLast4,
+    createdAt: payout.createdAt,
     deposit: payout.depositAddress
       ? {
           address: payout.depositAddress,
@@ -46,7 +49,9 @@ export function serializePayout(payout: PayoutRow, extra?: {
           currency: "usdc",
         }
       : null,
+    destinationCop: payout.destinationCop,
     destinationPreview: extra?.destinationPreview,
+    error: payout.error,
     feeTransaction: extra?.feeTransaction ?? undefined,
     fees: payout.fees,
     fromToken: payout.fromToken,
@@ -56,6 +61,7 @@ export function serializePayout(payout: PayoutRow, extra?: {
       effectiveUsdCop: payout.effectiveUsdCop,
     },
     sourceAmount: payout.sourceAmount,
+    sourceTxHash: payout.sourceTxHash,
     status: payout.status,
     transaction: extra?.transaction ?? (payout.txTo && payout.txData
       ? {
@@ -65,6 +71,7 @@ export function serializePayout(payout: PayoutRow, extra?: {
           value: payout.txValue ?? "0",
         }
       : null),
+    updatedAt: payout.updatedAt,
   };
 }
 

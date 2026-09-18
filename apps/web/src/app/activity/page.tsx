@@ -8,8 +8,11 @@ import { useWalletAdapter } from "@/hooks/use-wallet-adapter";
 import {
   fetchUserActivity,
   formatActivityDate,
+  getActivityRecipientLabel,
   getActivityStatusLabel,
   getActivityStatusTone,
+  getActivityTitle,
+  isActivityCredit,
   type ActivityItem,
 } from "@/lib/activity";
 import { getRecipientAlias } from "@/lib/saved-recipients";
@@ -35,10 +38,8 @@ function ActivityCard({
   item: ActivityItem;
   explorerUrl: string;
 }) {
-  const isSwap = item.type === "swap";
-  const isSell = item.swapType === "sell";
-  const title = isSwap ? (isSell ? "Vendiste pesos" : "Obtuviste pesos") : "Enviaste pesos";
-  const amountPrefix = isSwap && !isSell ? "+" : "−";
+  const title = getActivityTitle(item);
+  const amountPrefix = isActivityCredit(item) ? "+" : "−";
   const statusLabel = getActivityStatusLabel(item.status, item.error);
   const statusTone = getActivityStatusTone(item.status, item.error);
 
@@ -48,8 +49,10 @@ function ActivityCard({
         <div>
           <p className="text-sm font-semibold text-[#17211B]">{title}</p>
           <p className="mt-1 text-xs text-[#66736B]">
-            {isSwap ? (isSell ? "Desde" : "Destino") : "A"}{" "}
-            {formatRecipient(item.recipientAddress)}
+            {getActivityRecipientLabel(item)}{" "}
+            {item.type === "breb"
+              ? item.recipientAddress ?? "cuenta Bre-B"
+              : formatRecipient(item.recipientAddress)}
           </p>
         </div>
         <span
@@ -60,7 +63,8 @@ function ActivityCard({
       </div>
       <p className="mt-3 text-xl font-semibold text-[#0E7C4F]">
         {amountPrefix}
-        {formatPesoAmountFromString(item.amount)} pesos
+        {formatPesoAmountFromString(item.amount)}{" "}
+        {item.type === "breb" ? "COP" : "pesos"}
       </p>
       <p className="mt-1 text-xs text-[#66736B]">{formatActivityDate(item.createdAt)}</p>
       {item.txHash && (
@@ -121,7 +125,7 @@ export default function ActivityPage() {
         </Link>
         <h1 className="mt-4 text-2xl font-bold">Mi actividad</h1>
         <p className="mt-1 text-sm text-[#66736B]">
-          Conversiones, ventas y envíos desde tu wallet.
+          Conversiones, ventas, envíos y COP a cuentas Bre-B.
         </p>
 
         {!isConnected || !address ? (

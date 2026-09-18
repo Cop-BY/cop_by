@@ -82,10 +82,14 @@ import {
 import {
   fetchUserActivity,
   formatActivityDate,
+  getActivityRecipientLabel,
   getActivityStatusLabel,
   getActivityStatusTone,
+  getActivityTitle,
+  isActivityCredit,
   type ActivityItem,
 } from "@/lib/activity";
+import { SpendPanel } from "@/components/spend-panel";
 import {
   getSavedRecipients,
   getRecipientAlias,
@@ -111,7 +115,7 @@ const SQUID_CELO_APPROVAL_TARGET =
 
 type SwapStatus = "idle" | "quoting" | "buying" | "complete" | "error";
 type SwapProgress = "idle" | "quoting" | "confirming" | "processing";
-type ActionMode = "buy" | "sell" | "transfer";
+type ActionMode = "buy" | "sell" | "transfer" | "spend";
 type HomePanel = "activity" | "details" | "chart" | null;
 type RateChartInterval = "1h" | "1d" | "1w" | "1m" | "1y" | "5y" | "max";
 type RateChartPair = "usd-cop" | "cop-usd";
@@ -628,9 +632,26 @@ export default function Home() {
   useEffect(() => {
     setShowOnboarding(!hasSeenOnboarding());
 
+    const modeFromQuery = new URLSearchParams(window.location.search).get("mode");
     const savedMode = window.sessionStorage.getItem(ACTION_MODE_STORAGE_KEY);
-    if (savedMode === "buy" || savedMode === "sell" || savedMode === "transfer") {
-      setActionMode(savedMode);
+    const initialMode =
+      modeFromQuery === "buy" ||
+      modeFromQuery === "sell" ||
+      modeFromQuery === "transfer" ||
+      modeFromQuery === "spend"
+        ? modeFromQuery
+        : savedMode;
+    if (
+      initialMode === "buy" ||
+      initialMode === "sell" ||
+      initialMode === "transfer" ||
+      initialMode === "spend"
+    ) {
+      setActionMode(initialMode);
+      window.sessionStorage.setItem(ACTION_MODE_STORAGE_KEY, initialMode);
+      if (initialMode === "transfer" || initialMode === "spend") {
+        setStep(2);
+      }
     }
 
     const openOnboarding = () => setShowOnboarding(true);
@@ -665,7 +686,7 @@ export default function Home() {
     setTransferConfirming(false);
     setTransferError(null);
     window.sessionStorage.setItem(ACTION_MODE_STORAGE_KEY, mode);
-    if (mode === "transfer") {
+    if (mode === "transfer" || mode === "spend") {
       setStep(2);
     }
   };
@@ -1647,9 +1668,11 @@ export default function Home() {
           title={
             actionMode === "transfer"
               ? "Enviar pesos"
-              : actionMode === "sell"
-                ? "Vender pesos"
-                : "COPm"
+              : actionMode === "spend"
+                ? "Gastar"
+                : actionMode === "sell"
+                  ? "Vender pesos"
+                  : "COPm"
           }
           onActivity={() => setHomePanel("activity")}
           onDetails={() =>
@@ -1673,7 +1696,7 @@ export default function Home() {
             tokenPrices={tokenPrices}
             onClose={() => setHomePanel(null)}
             onReorder={reorderToken}
-            onSpend={() => undefined}
+            onSpend={() => handleActionModeChange("spend")}
             onTransfer={() => handleActionModeChange("transfer")}
           />
         ) : homePanel === "chart" ? (
@@ -1688,6 +1711,15 @@ export default function Home() {
                 : null
             }
             onClose={() => setHomePanel(null)}
+          />
+        ) : actionMode === "spend" ? (
+          <SpendPanel
+            copm={portfolio.tokens.find((token) => token.symbol === "COPm")}
+            explorerUrl={targetNetwork.blockExplorerUrl}
+            isConnected={portfolio.isConnected}
+            usdc={portfolio.tokens.find((token) => token.symbol === "USDC")}
+            userAddress={portfolio.address}
+            onBack={() => handleActionModeChange("buy")}
           />
         ) : actionMode === "transfer" ? (
           <>
@@ -1740,6 +1772,13 @@ export default function Home() {
               mode={actionMode === "sell" ? "sell" : "buy"}
               onChange={(mode) => handleActionModeChange(mode)}
             />
+            <button
+              type="button"
+              onClick={() => handleActionModeChange("spend")}
+              className="mb-3 h-10 w-full rounded-[8px] bg-white text-sm font-semibold text-[#6D45B8] shadow-sm"
+            >
+              Gastar en Colombia
+            </button>
             {actionMode === "sell" ? (
               <SellCopmScreen
                 amount={sellAmount}
@@ -2482,13 +2521,7 @@ function ActivityPanel({
       ) : (
         <div className="space-y-2">
           {items.map((item) => {
-            const isSwap = item.type === "swap";
-            const isSell = item.swapType === "sell";
-            const title = isSwap
-              ? isSell
-                ? "Vendiste pesos"
-                : "Obtuviste pesos"
-              : "Enviaste pesos";
+            const title = getActivityTitle(item);
             const statusLabel = getActivityStatusLabel(item.status, item.error);
             const statusTone = getActivityStatusTone(item.status, item.error);
 
@@ -2503,8 +2536,10 @@ function ActivityPanel({
                       {title}
                     </p>
                     <p className="mt-1 text-xs text-[#66736B]">
-                  {isSwap ? (isSell ? "Desde" : "Destino") : "A"}{" "}
-                      {formatActivityRecipient(item.recipientAddress)}
+                      {getActivityRecipientLabel(item)}{" "}
+                      {item.type === "breb"
+                        ? item.recipientAddress ?? "cuenta Bre-B"
+                        : formatActivityRecipient(item.recipientAddress)}
                     </p>
                   </div>
                   <span
@@ -2514,8 +2549,9 @@ function ActivityPanel({
                   </span>
                 </div>
                 <p className="mt-3 text-lg font-semibold text-[#0E7C4F]">
-                  {isSwap && !isSell ? "+" : "-"}
-                  {formatPesoAmountFromString(item.amount)} pesos
+                  {isActivityCredit(item) ? "+" : "-"}
+                  {formatPesoAmountFromString(item.amount)}{" "}
+                  {item.type === "breb" ? "COP" : "pesos"}
                 </p>
                 <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[#66736B]">
                   <span>{formatActivityDate(item.createdAt)}</span>
@@ -2796,8 +2832,7 @@ function DetailsPanel({
         <button
           type="button"
           onClick={onSpend}
-          disabled
-          className="h-11 rounded-[8px] bg-[#E9DFFC] text-sm font-semibold text-[#6D45B8] opacity-60"
+          className="h-11 rounded-[8px] bg-[#E9DFFC] text-sm font-semibold text-[#6D45B8]"
         >
           Gastar
         </button>
